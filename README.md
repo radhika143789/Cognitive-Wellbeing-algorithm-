@@ -1,6 +1,6 @@
 # Cognitive-Wellbeing-algorithm
 
-
+#AI Mental Fitness Tracker
 A data-driven project that leverages machine learning to track and analyze mental fitness based on global mental health disorder data. This project includes data cleaning, visualization, and predictive modeling to assess cognitive well-being trends worldwide.
 
 ---
