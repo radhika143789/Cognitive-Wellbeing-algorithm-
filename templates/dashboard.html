@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AI Mental Fitness Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="background-animation"></div>
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            <a href="{{ url_for('assess') }}">Assess</a>
+            <a href="{{ url_for('journal') }}">Journal</a>
+            <a href="{{ url_for('dashboard') }}" class="nav-active">Dashboard</a>
+            <span class="user-greeting">Hi, {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+        </div>
+    </nav>
+    <main class="container" style="max-width: 900px;">
+        <header class="hero">
+            <h1>Your Mental Fitness <span class="highlight">Journey</span></h1>
+        </header>
+
+        <div class="card glass dashboard-card">
+            <h2>Progress Over Time</h2>
+            <div class="chart-container" style="position: relative; height:400px; width:100%">
+                <canvas id="fitnessChart"></canvas>
+            </div>
+            {% if not dates %}
+                <p class="empty-state" style="text-align: center; margin-top: 2rem;">You haven't taken any assessments yet. Go to the <a href="{{ url_for('home') }}" style="color: var(--accent);">Home</a> page to get your first prediction!</p>
+            {% endif %}
+        </div>
+    </main>
+
+    <script>
+        const dates = {{ dates | safe }};
+        const scores = {{ scores | safe }};
+        
+        if (dates.length > 0) {
+            const ctx = document.getElementById('fitnessChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Mental Fitness Score',
+                        data: scores,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#c084fc',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#c084fc'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#cbd5e1'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#cbd5e1',
+                                maxTicksLimit: 7
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#f8fafc'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

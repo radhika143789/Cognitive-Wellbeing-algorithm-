@@ -1,0 +1,318 @@
+/* ═══════════════════════════════════════════════════
+   landing.css  —  MindTrack Landing Page Styles
+   ═══════════════════════════════════════════════════ */
+
+:root {
+    --primary-bg: #0f172a;
+    --accent: #3b82f6;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --glass-bg: rgba(30, 41, 59, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+.landing-body {
+    font-family: 'Inter', sans-serif;
+    background: var(--primary-bg);
+    color: var(--text-main);
+    overflow-x: hidden;
+}
+
+/* ─── Animated background orbs ─── */
+.landing-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+}
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.45;
+    animation: floatOrb 20s ease-in-out infinite;
+}
+.orb-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, #1d4ed8, transparent);
+    top: -200px; left: -100px;
+    animation-delay: 0s;
+}
+.orb-2 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, #7c3aed, transparent);
+    top: 200px; right: -150px;
+    animation-delay: -7s;
+}
+.orb-3 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, #0e7490, transparent);
+    bottom: -100px; left: 40%;
+    animation-delay: -14s;
+}
+@keyframes floatOrb {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50%       { transform: translateY(40px) scale(1.05); }
+}
+
+/* ─── Nav ─── */
+.landing-nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.1rem 3rem;
+    z-index: 100;
+    border-radius: 0 0 20px 20px;
+    border-top: none;
+}
+.nav-btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #4f46e5);
+    color: white !important;
+    padding: 0.5rem 1.4rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.nav-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(59,130,246,0.4);
+}
+
+/* ─── Hero ─── */
+.hero-section {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 7rem 2rem 4rem;
+}
+.hero-badge {
+    background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.3);
+    color: #93c5fd;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.4rem 1.2rem;
+    border-radius: 999px;
+    margin-bottom: 2rem;
+    letter-spacing: 0.03em;
+}
+.hero-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    max-width: 800px;
+}
+.hero-gradient {
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.hero-subtitle {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    line-height: 1.7;
+    margin-bottom: 2.5rem;
+}
+.hero-cta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 3.5rem;
+}
+.btn-hero-primary {
+    background: linear-gradient(135deg, #3b82f6, #4f46e5);
+    color: white;
+    padding: 0.9rem 2.4rem;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+}
+.btn-hero-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(59,130,246,0.5);
+}
+.btn-hero-secondary {
+    background: rgba(255,255,255,0.07);
+    color: var(--text-main);
+    border: 1px solid var(--glass-border);
+    padding: 0.9rem 2rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+.btn-hero-secondary:hover { background: rgba(255,255,255,0.12); }
+
+/* ─── Stats row ─── */
+.hero-stats {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 1.5rem 3rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+}
+.stat-item { text-align: center; }
+.stat-num {
+    display: block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.stat-label { font-size: 0.8rem; color: var(--text-muted); }
+.stat-divider { width: 1px; height: 40px; background: var(--glass-border); }
+
+/* ─── Sections ─── */
+.section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #60a5fa;
+    text-align: center;
+    margin-bottom: 0.8rem;
+}
+.section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    font-weight: 800;
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto 3rem;
+    line-height: 1.2;
+}
+
+/* ─── Features ─── */
+.features-section {
+    padding: 6rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+.feature-card {
+    padding: 2rem;
+    border-radius: 20px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+}
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+.feature-card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+}
+.feature-card p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.65;
+}
+
+/* ─── How it works ─── */
+.how-section {
+    padding: 6rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+.steps-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.step-card {
+    flex: 1;
+    min-width: 240px;
+    max-width: 320px;
+    padding: 2rem;
+    border-radius: 20px;
+    text-align: center;
+}
+.step-number {
+    font-family: 'Outfit', sans-serif;
+    font-size: 3rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #3b82f6, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: 1rem;
+}
+.step-card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+}
+.step-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+.step-arrow {
+    font-size: 2rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+/* ─── CTA Banner ─── */
+.cta-section {
+    max-width: 700px;
+    margin: 2rem auto 6rem;
+    padding: 3rem 2rem;
+    border-radius: 24px;
+    text-align: center;
+}
+.cta-section h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.8rem;
+}
+.cta-section p {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+}
+
+/* ─── Footer ─── */
+.landing-footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+    .landing-nav { padding: 1rem 1.2rem; }
+    .step-arrow { display: none; }
+    .hero-stats { gap: 1rem; padding: 1rem; }
+}

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Fitness Assessment — MindTrack</title>
+    <meta name="description" content="Answer 18 clinical questions to receive your personalized AI-powered mental fitness score.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/assess.css') }}">
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('assess') }}" class="nav-active">Assess</a>
+                <a href="{{ url_for('journal') }}">Journal</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="user-greeting">Hi, {{ current_user.username }}</span>
+                <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}" class="nav-btn-outline">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="assess-main">
+
+        {% if result is none %}
+        <!-- ── QUESTIONNAIRE FORM ── -->
+        <header class="hero" style="padding-top: 5rem;">
+            <h1>Mental Fitness <span class="highlight">Assessment</span></h1>
+            <p>Answer honestly. Our AI uses your responses to calculate a personalized mental fitness score.<br>
+               <small style="color:var(--text-muted);">All responses are private and never shared.</small>
+            </p>
+        </header>
+
+        <!-- Progress bar -->
+        <div class="progress-wrap glass">
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+            </div>
+            <span class="progress-label" id="progress-label">Question 1 of {{ questions|length }}</span>
+        </div>
+
+        <form id="assess-form" method="POST" action="{{ url_for('assess') }}">
+
+            <!-- Step cards — one per question -->
+            {% for q in questions %}
+            <div class="question-card glass {% if loop.index > 1 %}q-hidden{% endif %}" id="q-{{ loop.index }}" data-index="{{ loop.index }}">
+                <div class="q-group-badge">
+                    {% if q.group == 'schizophrenia' %}🔮 Thought Patterns
+                    {% elif q.group == 'bipolar' %}⚡ Mood Swings
+                    {% elif q.group == 'eating' %}🍽️ Eating Habits
+                    {% elif q.group == 'anxiety' %}😰 Anxiety
+                    {% elif q.group == 'drug' %}💊 Substance Use
+                    {% elif q.group == 'depressive' %}🌧️ Depression
+                    {% elif q.group == 'alcohol' %}🍷 Alcohol Use
+                    {% endif %}
+                </div>
+                <p class="q-text">{{ q.text }}</p>
+                <div class="q-options">
+                    {% for i, opt in enumerate(q.options) %}
+                    <label class="option-label" for="{{ q.id }}_{{ i }}">
+                        <input type="radio" name="{{ q.id }}" id="{{ q.id }}_{{ i }}" value="{{ i }}" required>
+                        <span class="option-box">
+                            <span class="option-dot"></span>
+                            {{ opt }}
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Navigation buttons -->
+            <div class="q-nav">
+                <button type="button" class="btn-outline" id="btn-prev" onclick="changeStep(-1)" style="display:none">← Back</button>
+                <button type="button" class="btn-primary" id="btn-next" onclick="changeStep(1)">Next →</button>
+                <button type="submit" class="btn-primary" id="btn-submit" style="display:none">
+                    <span>✨ Get My Score</span>
+                </button>
+            </div>
+        </form>
+
+        {% else %}
+        <!-- ── RESULT PANEL ── -->
+        <div class="result-hero">
+            <h1>Your Mental Fitness Score</h1>
+
+            {% set score = result %}
+            {% if score >= 75 %}
+                {% set color = '#10b981' %}{% set label = 'Excellent' %}{% set emoji = '🌟' %}
+                {% set msg = 'Your cognitive well-being looks great! Keep up your positive habits and check in regularly.' %}
+            {% elif score >= 50 %}
+                {% set color = '#f59e0b' %}{% set label = 'Moderate' %}{% set emoji = '🌤️' %}
+                {% set msg = 'You\'re doing reasonably well but there is room to improve. Small daily habits can make a big difference.' %}
+            {% else %}
+                {% set color = '#ef4444' %}{% set label = 'Needs Attention' %}{% set emoji = '💙' %}
+                {% set msg = 'Your score suggests your mental health may need support. Please consider speaking with a mental health professional.' %}
+            {% endif %}
+
+            <div class="big-score-ring" style="--ring-color: {{ color }};">
+                <svg viewBox="0 0 200 200" class="ring-svg">
+                    <circle cx="100" cy="100" r="88" class="ring-bg-circle"/>
+                    <circle cx="100" cy="100" r="88" class="ring-score-circle"
+                        stroke="{{ color }}"
+                        stroke-dasharray="{{ (score / 100 * 553)|round(1) }} 553"
+                        stroke-dashoffset="138.25"/>
+                </svg>
+                <div class="ring-inner">
+                    <span class="ring-score-num" style="color:{{ color }}">{{ score }}</span>
+                    <span class="ring-label" style="color:{{ color }}">{{ label }} {{ emoji }}</span>
+                </div>
+            </div>
+
+            <p class="result-insight-msg">{{ msg }}</p>
+
+            {% if journal_sentiment is defined %}
+            <div class="journal-enrichment-badge glass">
+                📓 Journal mood adjusted score &nbsp;·&nbsp;
+                Recent sentiment:
+                <strong style="color:{% if journal_sentiment > 0.05 %}#10b981{% elif journal_sentiment < -0.05 %}#ef4444{% else %}#f59e0b{% endif %}">
+                    {% if journal_sentiment > 0.05 %}Positive {% elif journal_sentiment < -0.05 %}Negative {% else %}Neutral {% endif %}
+                    ({{ journal_sentiment }})
+                </strong>
+            </div>
+            {% endif %}
+
+            <!-- Feature breakdown table -->
+            {% if features %}
+            <div class="breakdown-table glass">
+                <h3>Extracted Feature Breakdown</h3>
+                <table>
+                    <thead>
+                        <tr><th>Disorder Indicator</th><th>Estimated Prevalence</th><th>Level</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for k, v in features.items() %}
+                        <tr>
+                            <td>{{ k.replace('_', ' ') }}</td>
+                            <td>{{ v }}%</td>
+                            <td>
+                                {% if v < (loop.index * 0.5 + 0.5) %}
+                                    <span class="level-badge level-low">Low</span>
+                                {% elif v < (loop.index * 0.8 + 1.0) %}
+                                    <span class="level-badge level-med">Moderate</span>
+                                {% else %}
+                                    <span class="level-badge level-high">Elevated</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Crisis resources -->
+            {% if score < 40 %}
+            <div class="crisis-banner glass">
+                <h3>💙 You're Not Alone</h3>
+                <p>If you're struggling, please reach out to a mental health professional or crisis line.</p>
+                <div class="crisis-links">
+                    <a href="https://www.iCall.co.in" target="_blank" class="crisis-link">iCall India — 9152987821</a>
+                    <a href="https://www.vandrevalafoundation.com" target="_blank" class="crisis-link">Vandrevala Foundation — 1860-2662-345</a>
+                    <a href="https://988lifeline.org" target="_blank" class="crisis-link">988 Suicide &amp; Crisis Lifeline (US)</a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="result-actions">
+                <a href="{{ url_for('assess') }}" class="btn-outline">Retake Assessment</a>
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('dashboard') }}" class="btn-primary">View My Dashboard →</a>
+                {% else %}
+                    <a href="{{ url_for('register') }}" class="btn-primary">Save & Track Progress →</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script>
+        // Jinja2 enumerate workaround already handled by template filter
+        // ─── Multi-step wizard ───
+        const total = {{ questions|length }};
+        let current = 1;
+
+        function updateUI() {
+            document.getElementById('progress-fill').style.width = ((current / total) * 100) + '%';
+            document.getElementById('progress-label').textContent = `Question ${current} of ${total}`;
+            document.getElementById('btn-prev').style.display = current > 1 ? 'inline-flex' : 'none';
+            document.getElementById('btn-next').style.display = current < total ? 'inline-flex' : 'none';
+            document.getElementById('btn-submit').style.display = current === total ? 'inline-flex' : 'none';
+        }
+
+        function changeStep(dir) {
+            const card = document.getElementById(`q-${current}`);
+            // Validate current step has a selection
+            if (dir === 1) {
+                const name = card.querySelector('input[type=radio]').name;
+                if (!document.querySelector(`input[name="${name}"]:checked`)) {
+                    card.classList.add('shake');
+                    setTimeout(() => card.classList.remove('shake'), 500);
+                    return;
+                }
+            }
+            card.classList.add('q-hidden');
+            current = Math.max(1, Math.min(total, current + dir));
+            const next = document.getElementById(`q-${current}`);
+            next.classList.remove('q-hidden');
+            next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            updateUI();
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>

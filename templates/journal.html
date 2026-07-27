@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Journal - AI Mental Fitness Tracker</title>
+    <meta name="description" content="Write daily reflections and get instant AI-powered sentiment analysis to understand your emotional state.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('home') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('home') }}">Assess</a>
+                <a href="{{ url_for('journal') }}" class="nav-active">Journal</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="user-greeting">Hi, {{ current_user.username }}</span>
+                <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}" class="nav-btn-outline">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container" style="padding-top: 5rem; max-width: 860px;">
+
+        <header class="hero">
+            <h1>Mood <span class="highlight">Journal</span></h1>
+            <p>Write freely. Our AI will analyze the emotional tone of your entry to help you understand yourself better.</p>
+        </header>
+
+        <!-- Journal Write Area -->
+        <div class="card glass journal-write-card">
+            <form id="journal-form" method="POST" action="{{ url_for('journal') }}">
+                <div class="journal-header">
+                    <span class="journal-date" id="journal-date"></span>
+                    <span class="char-counter"><span id="char-count">0</span> / 2000</span>
+                </div>
+                <textarea
+                    id="journal-content"
+                    name="content"
+                    class="journal-textarea"
+                    placeholder="How are you feeling today? Write anything — your thoughts, worries, wins, or observations..."
+                    maxlength="2000"
+                    required
+                >{{ request.form.get('content', '') }}</textarea>
+                <div class="journal-footer">
+                    <div class="mood-prompts">
+                        <span class="prompt-label">Quick starters:</span>
+                        <button type="button" class="prompt-chip" onclick="insertPrompt('Today I felt ')">😊 Happy</button>
+                        <button type="button" class="prompt-chip" onclick="insertPrompt('I\'m feeling stressed about ')">😰 Stressed</button>
+                        <button type="button" class="prompt-chip" onclick="insertPrompt('I\'m grateful for ')">🙏 Grateful</button>
+                        <button type="button" class="prompt-chip" onclick="insertPrompt('I\'m worried about ')">😟 Worried</button>
+                    </div>
+                    <button type="submit" class="btn-primary journal-submit" id="journal-submit-btn">
+                        <span>Analyze Mood ✨</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sentiment Result -->
+        {% if result %}
+        <div class="card glass sentiment-result-card animate-in">
+            <h2>Sentiment Analysis <span style="font-size:1.5rem">{{ result.emoji }}</span></h2>
+            <div class="sentiment-grid">
+                <div class="sentiment-score-main">
+                    <div class="sentiment-label-badge" style="background: {{ result.color }}22; border-color: {{ result.color }}; color: {{ result.color }};">
+                        {{ result.label }}
+                    </div>
+                    <p class="sentiment-score-number" style="color: {{ result.color }}">{{ result.display_score }}<span style="font-size:1.2rem; color: var(--text-muted);">/100</span></p>
+                    <div class="sentiment-bar-container">
+                        <div class="sentiment-bar-fill" style="width: {{ result.display_score }}%; background: {{ result.color }};"></div>
+                    </div>
+                </div>
+                <div class="sentiment-breakdown">
+                    <h3>Emotion Breakdown</h3>
+                    <div class="breakdown-item">
+                        <span>😊 Positive</span>
+                        <div class="mini-bar">
+                            <div class="mini-bar-fill" style="width: {{ (result.pos * 100)|round(1) }}%; background: #10b981;"></div>
+                        </div>
+                        <span class="breakdown-pct">{{ (result.pos * 100)|round(1) }}%</span>
+                    </div>
+                    <div class="breakdown-item">
+                        <span>😐 Neutral</span>
+                        <div class="mini-bar">
+                            <div class="mini-bar-fill" style="width: {{ (result.neu * 100)|round(1) }}%; background: #f59e0b;"></div>
+                        </div>
+                        <span class="breakdown-pct">{{ (result.neu * 100)|round(1) }}%</span>
+                    </div>
+                    <div class="breakdown-item">
+                        <span>😔 Negative</span>
+                        <div class="mini-bar">
+                            <div class="mini-bar-fill" style="width: {{ (result.neg * 100)|round(1) }}%; background: #ef4444;"></div>
+                        </div>
+                        <span class="breakdown-pct">{{ (result.neg * 100)|round(1) }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Past Journal Entries -->
+        {% if entries %}
+        <section class="journal-history">
+            <h2 class="history-title">Recent Entries</h2>
+            <div class="entries-list">
+                {% for entry in entries %}
+                <div class="card glass entry-card">
+                    <div class="entry-header">
+                        <span class="entry-timestamp">{{ entry.timestamp.strftime('%b %d, %Y · %H:%M') }}</span>
+                        <span class="entry-sentiment-badge"
+                            style="
+                                background: {% if entry.sentiment_label == 'Positive' %}rgba(16,185,129,0.15){% elif entry.sentiment_label == 'Negative' %}rgba(239,68,68,0.15){% else %}rgba(245,158,11,0.15){% endif %};
+                                border-color: {% if entry.sentiment_label == 'Positive' %}#10b981{% elif entry.sentiment_label == 'Negative' %}#ef4444{% else %}#f59e0b{% endif %};
+                                color: {% if entry.sentiment_label == 'Positive' %}#10b981{% elif entry.sentiment_label == 'Negative' %}#ef4444{% else %}#f59e0b{% endif %};
+                            ">
+                            {% if entry.sentiment_label == 'Positive' %}😊{% elif entry.sentiment_label == 'Negative' %}😔{% else %}😐{% endif %}
+                            {{ entry.sentiment_label }}
+                        </span>
+                    </div>
+                    <p class="entry-content">{{ entry.content }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if not entries and not result %}
+        <div class="empty-journal-state">
+            <p class="empty-emoji">📓</p>
+            <p>No journal entries yet. Start writing above to see your mood history!</p>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script>
+        // Display today's date
+        const dateEl = document.getElementById('journal-date');
+        dateEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Live character counter
+        const textarea = document.getElementById('journal-content');
+        const counter = document.getElementById('char-count');
+        textarea.addEventListener('input', () => {
+            counter.textContent = textarea.value.length;
+        });
+        // Initialize counter
+        counter.textContent = textarea.value.length;
+
+        // Quick starter prompts
+        function insertPrompt(text) {
+            textarea.focus();
+            textarea.value = text;
+            textarea.setSelectionRange(text.length, text.length);
+            counter.textContent = textarea.value.length;
+        }
+    </script>
+</body>
+</html>

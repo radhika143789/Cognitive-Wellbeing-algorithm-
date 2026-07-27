@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - AI Mental Fitness Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-animation"></div>
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            <a href="{{ url_for('login') }}" class="nav-btn-outline">Login</a>
+        </div>
+    </nav>
+    <main class="container">
+        <div class="card glass auth-card">
+            <h2>Register</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form action="{{ url_for('register') }}" method="POST">
+                <div class="input-group full-width">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="input-group full-width" style="margin-top: 1rem;">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn-primary">Register</button>
+            </form>
+            <p class="auth-redirect">Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+        </div>
+    </main>
+</body>
+</html>
