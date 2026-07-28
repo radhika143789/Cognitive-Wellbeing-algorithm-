@@ -178,7 +178,11 @@ def extract_features(form_data: dict, journal_sentiment: float = 0.0) -> dict:
     }
 
     for q in QUESTIONS:
-        val = int(form_data.get(q["id"], 0))
+        try:
+            val = int(form_data.get(q["id"], 0))
+        except (ValueError, TypeError):
+            # Q6: Tampered / non-numeric form field — default to 0 (no symptom)
+            val = 0
         val = max(0, min(4, val))        # clamp to [0, 4]
         groups[q["group"]].append(val)
 

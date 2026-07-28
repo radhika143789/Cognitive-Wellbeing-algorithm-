@@ -1,5 +1,6 @@
 import os
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
+import logging
+from flask import Flask, request, render_template, redirect, url_for, flash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, AssessmentResult, JournalEntry, UserStats, ThoughtRecord, ActivityLog
@@ -12,11 +13,26 @@ from gamification import (
 )
 import joblib
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+# In production set SECRET_KEY via environment variable.
+# Never commit a real secret to source control.
+_SECRET_KEY = os.environ.get('SECRET_KEY', '')
+if not _SECRET_KEY:
+    _SECRET_KEY = 'dev-only-insecure-key-change-in-production'
+    logging.warning(
+        "SECRET_KEY not set in environment — using insecure dev key. "
+        "Set the SECRET_KEY env var before deploying."
+    )
+
+# Absolute DB path avoids silent data loss when CWD changes.
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_DB_PATH   = os.path.join(_BASE_DIR, 'database.db')
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'super-secret-key-replace-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SECRET_KEY']                  = _SECRET_KEY
+app.config['SQLALCHEMY_DATABASE_URI']     = f'sqlite:///{_DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Expose Python builtins to Jinja2 templates
@@ -69,6 +85,10 @@ def register():
         if not username or not password:
             flash('Username and password are required.', 'error')
             return redirect(url_for('register'))
+        # S3: Enforce minimum password length to prevent trivially weak passwords
+        if len(password) < 8:
+            flash('Password must be at least 8 characters.', 'error')
+            return redirect(url_for('register'))
         if User.query.filter_by(username=username).first():
             flash('Username already exists.', 'error')
             return redirect(url_for('register'))
@@ -90,7 +110,9 @@ def login():
         password = request.form.get('password', '')
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
-            login_user(user, remember=True)
+            # P3-1: "remember me" is opt-in, not forced on every login
+            remember = request.form.get('remember') == 'on'
+            login_user(user, remember=remember)
             return redirect(url_for('dashboard'))
         flash('Invalid username or password.', 'error')
     return render_template('login.html')
@@ -114,22 +136,23 @@ def dashboard():
         .order_by(AssessmentResult.timestamp.asc())
         .all()
     )
-    dates  = [a.timestamp.strftime('%Y-%m-%d %H:%M') for a in assessments]
-    scores = [a.score for a in assessments]
+    # P3-2: renamed to chart_* to make their purpose unambiguous
+    chart_dates  = [a.timestamp.strftime('%Y-%m-%d %H:%M') for a in assessments]
+    chart_scores = [a.score for a in assessments]
 
     # Gamification context
-    stats = UserStats.query.filter_by(user_id=current_user.id).first()
-    streak       = stats.streak_days       if stats else 0
-    longest      = stats.longest_streak   if stats else 0
-    total_j      = stats.total_journals   if stats else 0
-    total_a      = stats.total_assessments if stats else 0
-    earned_ids   = stats.get_badges()     if stats else []
-    badges       = get_badge_details(earned_ids)
+    stats      = UserStats.query.filter_by(user_id=current_user.id).first()
+    streak     = stats.streak_days        if stats else 0
+    longest    = stats.longest_streak     if stats else 0
+    total_j    = stats.total_journals     if stats else 0
+    total_a    = stats.total_assessments  if stats else 0
+    earned_ids = stats.get_badges()       if stats else []
+    badges     = get_badge_details(earned_ids)
 
     # Score trend arrow: compare last two scores
     trend = None
-    if len(scores) >= 2:
-        delta = scores[-1] - scores[-2]
+    if len(chart_scores) >= 2:
+        delta = chart_scores[-1] - chart_scores[-2]
         if delta > 2:
             trend = "up"
         elif delta < -2:
@@ -139,15 +162,15 @@ def dashboard():
 
     return render_template(
         'dashboard.html',
-        dates=dates,
-        scores=scores,
+        dates=chart_dates,
+        scores=chart_scores,
         streak=streak,
         longest=longest,
         total_journals=total_j,
         total_assessments=total_a,
         badges=badges,
         trend=trend,
-        latest_score=scores[-1] if scores else None,
+        latest_score=chart_scores[-1] if chart_scores else None,
     )
 
 
@@ -182,8 +205,8 @@ def assess():
                 np.mean([e.sentiment_compound for e in recent_entries])
             )
 
-    # Map raw form answers → disorder prevalence features
-    form_data = {key: request.form.get(key, 0) for key in request.form}
+    # B2: Filter to KNOWN question ids only — ignores stray/CSRF form fields
+    form_data = {q['id']: request.form.get(q['id'], 0) for q in QUESTIONS}
     features  = extract_features(form_data, journal_sentiment)
 
     # Build ordered feature vector matching the model's training columns
@@ -204,13 +227,7 @@ def assess():
         stats.total_assessments += 1
         newly_awarded = evaluate_badges(stats, latest_score=score)
         db.session.commit()
-
-        for badge_id in newly_awarded:
-            badge = BADGE_DEFINITIONS.get(badge_id, {})
-            flash(
-                f"🏅 Badge unlocked: {badge.get('emoji','')} {badge.get('name','')}!",
-                'badge'
-            )
+        _flash_badges(newly_awarded)
 
     return render_template(
         'assess.html',
@@ -219,6 +236,18 @@ def assess():
         features=features,
         journal_sentiment=round(journal_sentiment, 3),
     )
+
+
+# ─────────────────────────── HELPERS ───────────────────────────
+
+def _flash_badges(newly_awarded: list) -> None:
+    """Q1: Centralised badge flash — eliminates duplicated code in assess/journal routes."""
+    for badge_id in newly_awarded:
+        badge = BADGE_DEFINITIONS.get(badge_id, {})
+        flash(
+            f"🏅 Badge unlocked: {badge.get('emoji', '')} {badge.get('name', '')}!",
+            'badge'
+        )
 
 
 # ─────────────────────────── JOURNAL ───────────────────────────
@@ -243,13 +272,7 @@ def journal():
             update_streak(stats)
             newly_awarded = evaluate_badges(stats)
             db.session.commit()
-
-            for badge_id in newly_awarded:
-                badge = BADGE_DEFINITIONS.get(badge_id, {})
-                flash(
-                    f"🏅 Badge unlocked: {badge.get('emoji','')} {badge.get('name','')}!",
-                    'badge'
-                )
+            _flash_badges(newly_awarded)
 
             result = sentiment
 
@@ -331,7 +354,8 @@ def report():
         rec=rec,
         latest_score=latest_score,
         username=current_user.username,
-        now=datetime.utcnow().strftime('%d %B %Y, %H:%M UTC'),
+        # B1: timezone-aware datetime instead of deprecated utcnow()
+        now=datetime.now(timezone.utc).strftime('%d %B %Y, %H:%M UTC'),
     )
 
 

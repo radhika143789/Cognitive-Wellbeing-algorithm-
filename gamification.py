@@ -5,7 +5,7 @@ Defines all achievement badges and the logic to evaluate which
 ones a user has earned based on their UserStats record.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 
 # ── Badge Definitions ─────────────────────────────────────────────────────────
@@ -86,8 +86,8 @@ BADGE_DEFINITIONS = {
 }
 
 
-TIER_ORDER = {"bronze": 0, "silver": 1, "gold": 2, "platinum": 3}
-TIER_COLORS = {
+_TIER_ORDER = {"bronze": 0, "silver": 1, "gold": 2, "platinum": 3}
+_TIER_COLORS = {
     "bronze":   "#cd7f32",
     "silver":   "#c0c0c0",
     "gold":     "#ffd700",
@@ -114,7 +114,6 @@ def update_streak(stats, today: date = None) -> bool:
         # Already journaled today; no change
         return False
 
-    from datetime import timedelta
     yesterday = today - timedelta(days=1)
 
     if stats.last_journal_date == yesterday:
@@ -169,12 +168,14 @@ def evaluate_badges(stats, latest_score: float = None) -> list:
 
 def get_or_create_stats(db, user_id):
     """Fetch UserStats for a user, creating a blank record if needed."""
+    # Q4: Import here is acceptable since models imports from db (not gamification).
+    # The import is kept local to avoid a module-level circular dependency.
     from models import UserStats
     stats = UserStats.query.filter_by(user_id=user_id).first()
     if stats is None:
         stats = UserStats(user_id=user_id)
         db.session.add(stats)
-        db.session.flush()  # get an id without committing
+        db.session.flush()  # obtain an id before commit
     return stats
 
 
@@ -188,8 +189,8 @@ def get_badge_details(badge_ids: list) -> list:
         if bid in BADGE_DEFINITIONS:
             detail = dict(BADGE_DEFINITIONS[bid])
             detail["id"]    = bid
-            detail["color"] = TIER_COLORS[detail["tier"]]
+            detail["color"] = _TIER_COLORS[detail["tier"]]
             details.append(detail)
     # Sort platinum → gold → silver → bronze
-    details.sort(key=lambda b: -TIER_ORDER[b["tier"]])
+    details.sort(key=lambda b: -_TIER_ORDER[b["tier"]])
     return details

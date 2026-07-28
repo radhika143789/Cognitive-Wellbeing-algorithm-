@@ -1,6 +1,11 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _utcnow():
+    """Timezone-aware UTC now. Drop-in replacement for deprecated datetime.utcnow."""
+    return datetime.now(timezone.utc)
 
 db = SQLAlchemy()
 
@@ -8,7 +13,8 @@ db = SQLAlchemy()
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
+    # P3-3: String(255) is more future-proof for longer hash algorithms
+    password = db.Column(db.String(255), nullable=False)
     assessments    = db.relationship('AssessmentResult', backref='user', lazy=True)
     journal_entries = db.relationship('JournalEntry',    backref='user', lazy=True)
     thought_records = db.relationship('ThoughtRecord',   backref='user', lazy=True)
@@ -19,7 +25,8 @@ class User(UserMixin, db.Model):
 class AssessmentResult(db.Model):
     id        = db.Column(db.Integer, primary_key=True)
     score     = db.Column(db.Float, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    # B3: use timezone-aware callable — datetime.utcnow is deprecated in Python 3.12+
+    timestamp = db.Column(db.DateTime(timezone=True), default=_utcnow)
     user_id   = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 
@@ -29,7 +36,7 @@ class JournalEntry(db.Model):
     # Sentiment scores from VADER: -1 (most negative) to +1 (most positive)
     sentiment_compound = db.Column(db.Float, nullable=False, default=0.0)
     sentiment_label    = db.Column(db.String(20), nullable=False, default='Neutral')
-    timestamp          = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp          = db.Column(db.DateTime(timezone=True), default=_utcnow)
     user_id            = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 
@@ -75,7 +82,7 @@ class ThoughtRecord(db.Model):
     evidence_against = db.Column(db.Text, nullable=True)       # Evidence that challenges it
     balanced_thought = db.Column(db.Text, nullable=True)       # Reframed, balanced thought
     outcome_mood     = db.Column(db.Integer, nullable=True)    # Mood after (1-10)
-    timestamp        = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp        = db.Column(db.DateTime(timezone=True), default=_utcnow)
     user_id          = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 
@@ -86,5 +93,5 @@ class ActivityLog(db.Model):
     mood_before = db.Column(db.Integer, nullable=False)   # 1-10
     mood_after  = db.Column(db.Integer, nullable=True)    # 1-10 (filled in later optionally)
     notes       = db.Column(db.Text, nullable=True)
-    planned_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    planned_at  = db.Column(db.DateTime(timezone=True), default=_utcnow)
     user_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
