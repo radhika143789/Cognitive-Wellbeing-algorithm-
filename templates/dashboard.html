@@ -3,10 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - AI Mental Fitness Tracker</title>
+    <title>Dashboard — MindTrack</title>
+    <meta name="description" content="Track your mental fitness journey over time with interactive charts, streak counters, and achievement badges.">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ── Dashboard-specific styles ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 1.25rem 1rem;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        .stat-card .stat-icon { font-size: 1.8rem; display: block; margin-bottom: 0.4rem; }
+        .stat-card .stat-value { font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+        .stat-card .stat-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .streak-card .stat-value { color: #f97316; }
+
+        .trend-badge {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+        }
+        .trend-up      { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .trend-down    { background: rgba(239,68,68,0.2);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3);  }
+        .trend-stable  { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3);  }
+
+        /* ── Badges ── */
+        .badges-section { margin-top: 2rem; }
+        .badges-section h2 { margin-bottom: 1.2rem; }
+        .badges-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 1rem;
+        }
+        .badge-card {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            padding: 1.2rem 1rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: default;
+        }
+        .badge-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.35); }
+        .badge-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: var(--badge-color, #c0c0c0);
+        }
+        .badge-emoji { font-size: 2.2rem; display: block; margin-bottom: 0.5rem; }
+        .badge-name  { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 0.2rem; }
+        .badge-desc  { font-size: 0.73rem; color: var(--text-muted); line-height: 1.4; }
+        .badge-tier  {
+            display: inline-block; margin-top: 0.5rem;
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.08em; padding: 0.15rem 0.6rem; border-radius: 999px;
+            color: var(--badge-color, #c0c0c0);
+            border: 1px solid var(--badge-color, #c0c0c0);
+        }
+        .no-badges {
+            color: var(--text-muted); font-size: 0.9rem; text-align: center;
+            padding: 2rem; grid-column: 1/-1;
+        }
+
+        /* ── Action buttons ── */
+        .dash-actions { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem; }
+        .btn-action {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.7rem 1.4rem; border-radius: 10px; font-weight: 600;
+            font-size: 0.9rem; text-decoration: none; transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .btn-action-primary { background: var(--accent); color: #fff; }
+        .btn-action-primary:hover { background: #7c3aed; transform: translateY(-2px); }
+        .btn-action-secondary { background: rgba(255,255,255,0.07); color: var(--text); }
+        .btn-action-secondary:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
+    </style>
 </head>
 <body>
     <div class="background-animation"></div>
@@ -15,32 +99,111 @@
         <div class="nav-links">
             <a href="{{ url_for('assess') }}">Assess</a>
             <a href="{{ url_for('journal') }}">Journal</a>
+            <a href="{{ url_for('cbt') }}">CBT</a>
             <a href="{{ url_for('resources') }}">Resources</a>
             <a href="{{ url_for('dashboard') }}" class="nav-active">Dashboard</a>
             <span class="user-greeting">Hi, {{ current_user.username }}</span>
             <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
         </div>
     </nav>
-    <main class="container" style="max-width: 900px;">
+
+    <main class="container" style="max-width: 960px;">
         <header class="hero">
             <h1>Your Mental Fitness <span class="highlight">Journey</span></h1>
+            {% if latest_score is not none %}
+                <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <span style="font-size: 1.1rem; color: var(--text-muted);">
+                        Latest score: <strong style="color: var(--accent);">{{ latest_score }}</strong>
+                    </span>
+                    {% if trend == 'up' %}
+                        <span class="trend-badge trend-up">↑ Improving</span>
+                    {% elif trend == 'down' %}
+                        <span class="trend-badge trend-down">↓ Needs attention</span>
+                    {% elif trend == 'stable' %}
+                        <span class="trend-badge trend-stable">→ Stable</span>
+                    {% endif %}
+                </div>
+            {% endif %}
         </header>
 
+        <!-- ── Stats Row ── -->
+        <div class="stats-grid">
+            <div class="stat-card streak-card">
+                <span class="stat-icon">🔥</span>
+                <div class="stat-value">{{ streak }}</div>
+                <div class="stat-label">Day Streak</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">⚡</span>
+                <div class="stat-value">{{ longest }}</div>
+                <div class="stat-label">Longest Streak</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📓</span>
+                <div class="stat-value">{{ total_journals }}</div>
+                <div class="stat-label">Journal Entries</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🎯</span>
+                <div class="stat-value">{{ total_assessments }}</div>
+                <div class="stat-label">Assessments</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🏅</span>
+                <div class="stat-value">{{ badges | length }}</div>
+                <div class="stat-label">Badges Earned</div>
+            </div>
+        </div>
+
+        <!-- ── Score Chart ── -->
         <div class="card glass dashboard-card">
-            <h2>Progress Over Time</h2>
-            <div class="chart-container" style="position: relative; height:400px; width:100%">
+            <h2>Score Progress</h2>
+            <div class="chart-container" style="position: relative; height:380px; width:100%">
                 <canvas id="fitnessChart"></canvas>
             </div>
             {% if not dates %}
-                <p class="empty-state" style="text-align: center; margin-top: 2rem;">You haven't taken any assessments yet. Go to the <a href="{{ url_for('home') }}" style="color: var(--accent);">Home</a> page to get your first prediction!</p>
+                <p class="empty-state" style="text-align: center; margin-top: 2rem; color: var(--text-muted);">
+                    No assessments yet.
+                    <a href="{{ url_for('assess') }}" style="color: var(--accent);">Take your first assessment →</a>
+                </p>
             {% endif %}
+        </div>
+
+        <!-- ── Achievement Badges ── -->
+        <div class="card glass badges-section">
+            <h2>🏅 Achievements</h2>
+            <div class="badges-grid">
+                {% if badges %}
+                    {% for badge in badges %}
+                    <div class="badge-card" style="--badge-color: {{ badge.color }};" title="{{ badge.description }}">
+                        <span class="badge-emoji">{{ badge.emoji }}</span>
+                        <div class="badge-name">{{ badge.name }}</div>
+                        <div class="badge-desc">{{ badge.description }}</div>
+                        <span class="badge-tier">{{ badge.tier }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-badges">
+                        🌱 No badges yet — start journaling and taking assessments to earn them!
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ── Quick Actions ── -->
+        <div class="dash-actions">
+            <a href="{{ url_for('assess') }}" class="btn-action btn-action-primary">🎯 New Assessment</a>
+            <a href="{{ url_for('journal') }}" class="btn-action btn-action-secondary">📓 Write in Journal</a>
+            <a href="{{ url_for('cbt') }}" class="btn-action btn-action-secondary">🧠 CBT Worksheets</a>
+            <a href="{{ url_for('report') }}" class="btn-action btn-action-secondary">📄 Export Report</a>
+            <a href="{{ url_for('resources') }}" class="btn-action btn-action-secondary">💡 My Resources</a>
         </div>
     </main>
 
     <script>
-        const dates = {{ dates | safe }};
-        const scores = {{ scores | safe }};
-        
+        const dates  = {{ dates  | tojson }};
+        const scores = {{ scores | tojson }};
+
         if (dates.length > 0) {
             const ctx = document.getElementById('fitnessChart').getContext('2d');
             new Chart(ctx, {
@@ -50,13 +213,15 @@
                     datasets: [{
                         label: 'Mental Fitness Score',
                         data: scores,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                        borderWidth: 2,
-                        tension: 0.3,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         fill: true,
                         pointBackgroundColor: '#c084fc',
                         pointBorderColor: '#fff',
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
                         pointHoverBackgroundColor: '#fff',
                         pointHoverBorderColor: '#c084fc'
                     }]
@@ -68,27 +233,19 @@
                         y: {
                             beginAtZero: true,
                             max: 100,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#cbd5e1'
-                            }
+                            grid: { color: 'rgba(255,255,255,0.08)' },
+                            ticks: { color: '#cbd5e1' }
                         },
                         x: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#cbd5e1',
-                                maxTicksLimit: 7
-                            }
+                            grid: { color: 'rgba(255,255,255,0.08)' },
+                            ticks: { color: '#cbd5e1', maxTicksLimit: 8 }
                         }
                     },
                     plugins: {
-                        legend: {
-                            labels: {
-                                color: '#f8fafc'
+                        legend: { labels: { color: '#f8fafc' } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` Score: ${ctx.parsed.y}`
                             }
                         }
                     }

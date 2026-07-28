@@ -2,20 +2,25 @@ import os
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, AssessmentResult, JournalEntry
+from models import db, User, AssessmentResult, JournalEntry, UserStats, ThoughtRecord, ActivityLog
 from nlp_service import analyze_sentiment
 from questionnaire_extractor import extract_features, QUESTIONS
 from resources import get_recommendations
+from gamification import (
+    update_streak, evaluate_badges, get_or_create_stats,
+    get_badge_details, BADGE_DEFINITIONS
+)
 import joblib
 import numpy as np
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super-secret-key-replace-in-production'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Expose Python's enumerate to Jinja2 templates
-app.jinja_env.globals.update(enumerate=enumerate)
+# Expose Python builtins to Jinja2 templates
+app.jinja_env.globals.update(enumerate=enumerate, zip=zip)
 
 db.init_app(app)
 
@@ -111,7 +116,39 @@ def dashboard():
     )
     dates  = [a.timestamp.strftime('%Y-%m-%d %H:%M') for a in assessments]
     scores = [a.score for a in assessments]
-    return render_template('dashboard.html', dates=dates, scores=scores)
+
+    # Gamification context
+    stats = UserStats.query.filter_by(user_id=current_user.id).first()
+    streak       = stats.streak_days       if stats else 0
+    longest      = stats.longest_streak   if stats else 0
+    total_j      = stats.total_journals   if stats else 0
+    total_a      = stats.total_assessments if stats else 0
+    earned_ids   = stats.get_badges()     if stats else []
+    badges       = get_badge_details(earned_ids)
+
+    # Score trend arrow: compare last two scores
+    trend = None
+    if len(scores) >= 2:
+        delta = scores[-1] - scores[-2]
+        if delta > 2:
+            trend = "up"
+        elif delta < -2:
+            trend = "down"
+        else:
+            trend = "stable"
+
+    return render_template(
+        'dashboard.html',
+        dates=dates,
+        scores=scores,
+        streak=streak,
+        longest=longest,
+        total_journals=total_j,
+        total_assessments=total_a,
+        badges=badges,
+        trend=trend,
+        latest_score=scores[-1] if scores else None,
+    )
 
 
 # ─────────────────────────── ASSESSMENT ───────────────────────────
@@ -159,10 +196,21 @@ def assess():
     prediction = model.predict([vec])[0]
     score      = round(float(np.clip(prediction, 0, 100)), 2)
 
-    # Persist to DB for logged-in users
+    # Persist to DB and update gamification stats for logged-in users
     if current_user.is_authenticated:
         db.session.add(AssessmentResult(score=score, user_id=current_user.id))
+
+        stats = get_or_create_stats(db, current_user.id)
+        stats.total_assessments += 1
+        newly_awarded = evaluate_badges(stats, latest_score=score)
         db.session.commit()
+
+        for badge_id in newly_awarded:
+            badge = BADGE_DEFINITIONS.get(badge_id, {})
+            flash(
+                f"🏅 Badge unlocked: {badge.get('emoji','')} {badge.get('name','')}!",
+                'badge'
+            )
 
     return render_template(
         'assess.html',
@@ -189,7 +237,20 @@ def journal():
                 sentiment_label=sentiment['label'],
                 user_id=current_user.id
             ))
+
+            # ── Gamification: update streak + check badges ──
+            stats = get_or_create_stats(db, current_user.id)
+            update_streak(stats)
+            newly_awarded = evaluate_badges(stats)
             db.session.commit()
+
+            for badge_id in newly_awarded:
+                badge = BADGE_DEFINITIONS.get(badge_id, {})
+                flash(
+                    f"🏅 Badge unlocked: {badge.get('emoji','')} {badge.get('name','')}!",
+                    'badge'
+                )
+
             result = sentiment
 
     entries = (
@@ -221,8 +282,6 @@ def resources():
         )
         if latest:
             score = latest.score
-        # Pull the most recently stored feature snapshot if available
-        # (For now we derive from score band — features are stateless)
     rec = get_recommendations(score, features)
     return render_template('resources.html', rec=rec, score=round(score, 1))
 
@@ -231,6 +290,147 @@ def resources():
 def crisis():
     """Public crisis support page — no login required."""
     return render_template('crisis.html')
+
+
+# ─────────────────────────── PDF REPORT ───────────────────────────
+
+@app.route('/report')
+@login_required
+def report():
+    """
+    Renders a print-optimised report page.
+    User triggers print via browser (Ctrl+P / window.print()).
+    """
+    assessments = (
+        AssessmentResult.query
+        .filter_by(user_id=current_user.id)
+        .order_by(AssessmentResult.timestamp.desc())
+        .limit(10)
+        .all()
+    )
+    entries = (
+        JournalEntry.query
+        .filter_by(user_id=current_user.id)
+        .order_by(JournalEntry.timestamp.desc())
+        .limit(10)
+        .all()
+    )
+    stats = UserStats.query.filter_by(user_id=current_user.id).first()
+    earned_ids = stats.get_badges() if stats else []
+    badges     = get_badge_details(earned_ids)
+
+    latest_score = assessments[0].score if assessments else None
+    rec = get_recommendations(latest_score or 50.0, {})
+
+    return render_template(
+        'report.html',
+        assessments=assessments,
+        entries=entries,
+        badges=badges,
+        stats=stats,
+        rec=rec,
+        latest_score=latest_score,
+        username=current_user.username,
+        now=datetime.utcnow().strftime('%d %B %Y, %H:%M UTC'),
+    )
+
+
+# ─────────────────────────── CBT WORKSHEETS ───────────────────────────
+
+@app.route('/cbt', methods=['GET'])
+@login_required
+def cbt():
+    """CBT Worksheet hub — Thought Records + Behavioural Activation."""
+    thought_records = (
+        ThoughtRecord.query
+        .filter_by(user_id=current_user.id)
+        .order_by(ThoughtRecord.timestamp.desc())
+        .limit(20)
+        .all()
+    )
+    activity_logs = (
+        ActivityLog.query
+        .filter_by(user_id=current_user.id)
+        .order_by(ActivityLog.planned_at.desc())
+        .limit(20)
+        .all()
+    )
+    return render_template('cbt.html', thought_records=thought_records, activity_logs=activity_logs)
+
+
+@app.route('/cbt/thought-record', methods=['POST'])
+@login_required
+def cbt_thought_record():
+    """Save a completed Thought Record."""
+    situation        = request.form.get('situation', '').strip()
+    emotions         = request.form.get('emotions', '').strip()
+    hot_thought      = request.form.get('hot_thought', '').strip()
+    evidence_for     = request.form.get('evidence_for', '').strip()
+    evidence_against = request.form.get('evidence_against', '').strip()
+    balanced_thought = request.form.get('balanced_thought', '').strip()
+    outcome_mood_raw = request.form.get('outcome_mood', '')
+
+    if not situation or not hot_thought:
+        flash('Situation and hot thought are required fields.', 'error')
+        return redirect(url_for('cbt'))
+
+    try:
+        outcome_mood = int(outcome_mood_raw) if outcome_mood_raw else None
+        if outcome_mood is not None:
+            outcome_mood = max(1, min(10, outcome_mood))
+    except ValueError:
+        outcome_mood = None
+
+    record = ThoughtRecord(
+        situation=situation,
+        emotions=emotions,
+        hot_thought=hot_thought,
+        evidence_for=evidence_for,
+        evidence_against=evidence_against,
+        balanced_thought=balanced_thought,
+        outcome_mood=outcome_mood,
+        user_id=current_user.id,
+    )
+    db.session.add(record)
+    db.session.commit()
+    flash('✅ Thought record saved!', 'success')
+    return redirect(url_for('cbt') + '#thought-records')
+
+
+@app.route('/cbt/activity-log', methods=['POST'])
+@login_required
+def cbt_activity_log():
+    """Save a Behavioural Activation activity log entry."""
+    activity    = request.form.get('activity', '').strip()
+    mood_before = request.form.get('mood_before', '5')
+    mood_after  = request.form.get('mood_after', '')
+    notes       = request.form.get('notes', '').strip()
+
+    if not activity:
+        flash('Activity description is required.', 'error')
+        return redirect(url_for('cbt'))
+
+    try:
+        mb = max(1, min(10, int(mood_before)))
+    except (ValueError, TypeError):
+        mb = 5
+
+    try:
+        ma = max(1, min(10, int(mood_after))) if mood_after else None
+    except (ValueError, TypeError):
+        ma = None
+
+    log = ActivityLog(
+        activity=activity,
+        mood_before=mb,
+        mood_after=ma,
+        notes=notes,
+        user_id=current_user.id,
+    )
+    db.session.add(log)
+    db.session.commit()
+    flash('✅ Activity logged!', 'success')
+    return redirect(url_for('cbt') + '#activity-logs')
 
 
 if __name__ == '__main__':

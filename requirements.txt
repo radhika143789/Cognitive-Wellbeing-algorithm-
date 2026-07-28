@@ -5,3 +5,5 @@ joblib
 numpy
 flask-sqlalchemy
 flask-login
+vaderSentiment
+pytest

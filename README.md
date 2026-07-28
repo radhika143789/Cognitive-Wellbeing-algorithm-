@@ -158,6 +158,18 @@ Mental Fitness Score (0 – 100)
 - Dedicated `/crisis` page with global hotlines + live box breathing widget
 - Crisis banner auto-shown on result page when score < 30
 
+### Phase 5 — Gamification, PDF Reports & Advanced CBT Worksheets
+- **Gamification engine** (`gamification.py`) — 11 achievement badges (bronze/silver/gold/platinum)
+- **Streak tracking** — daily journal streak, longest streak, total stats all persisted in `UserStats` DB model
+- **Enhanced Dashboard** — streak card 🔥, badges showcase, score trend arrow (↑↓→), quick action buttons
+- **PDF Report** (`/report`) — print-optimized A4 layout with score history, journal excerpts, badges, and recommendations. Uses browser `window.print()` — zero extra dependencies
+- **CBT Worksheet Hub** (`/cbt`) — tabbed interface with:
+  - 7-column Thought Record (situation, emotions, hot thought, evidence for/against, balanced thought, outcome mood slider)
+  - Behavioural Activation Planner (activity + mood before/after sliders)
+  - Past Records history (collapsible detail cards)
+- **New DB models**: `UserStats`, `ThoughtRecord`, `ActivityLog`
+- **Full QA test suite** (`tests/`) — 70+ tests covering unit (ML, NLP, gamification, resources) and integration (all Flask routes, auth, CBT, report)
+
 ---
 
 ## 🌐 Routes

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindTrack Report — {{ username }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ── Print button (hidden on print) ── -->
+    <div class="print-toolbar no-print">
+        <button id="printBtn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <a href="{{ url_for('dashboard') }}" class="back-link">← Back to Dashboard</a>
+    </div>
+
+    <!-- ── Report ── -->
+    <div class="report-wrapper">
+
+        <!-- Cover -->
+        <header class="report-header">
+            <div class="report-brand">🧠 MindTrack</div>
+            <h1 class="report-title">Mental Wellness Report</h1>
+            <p class="report-meta">
+                <strong>{{ username }}</strong> &nbsp;|&nbsp;
+                Generated on {{ now }}
+            </p>
+            {% if latest_score is not none %}
+            <div class="score-hero">
+                <div class="score-circle" style="--score-color: {{ rec.color }};">
+                    <span class="score-number">{{ latest_score | round(1) }}</span>
+                    <span class="score-label">/ 100</span>
+                </div>
+                <div class="score-meta">
+                    <div class="score-band-label" style="color: {{ rec.color }};">
+                        {{ rec.emoji }} {{ rec.score_band | capitalize }} Wellness
+                    </div>
+                    <p class="score-headline">{{ rec.headline }}</p>
+                </div>
+            </div>
+            {% else %}
+            <p class="no-data-note">No assessments completed yet.</p>
+            {% endif %}
+        </header>
+
+        <hr class="section-divider">
+
+        <!-- ── Assessment History ── -->
+        <section class="report-section">
+            <h2>📈 Assessment History</h2>
+            {% if assessments %}
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Date & Time</th>
+                        <th>Score</th>
+                        <th>Band</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in assessments %}
+                    {% set band = 'Excellent' if a.score >= 75 else ('Good' if a.score >= 55 else ('Moderate' if a.score >= 35 else 'Low')) %}
+                    <tr>
+                        <td>{{ loop.revindex }}</td>
+                        <td>{{ a.timestamp.strftime('%d %b %Y, %H:%M') }}</td>
+                        <td class="score-cell">{{ a.score }}</td>
+                        <td>{{ band }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="no-data-note">No assessments on record.</p>
+            {% endif %}
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- ── Journal Excerpts ── -->
+        <section class="report-section">
+            <h2>📓 Recent Journal Excerpts</h2>
+            {% if entries %}
+            <div class="journal-list">
+                {% for entry in entries %}
+                <div class="journal-entry-item">
+                    <div class="entry-header">
+                        <span class="entry-date">{{ entry.timestamp.strftime('%d %b %Y') }}</span>
+                        <span class="entry-badge badge-{{ entry.sentiment_label | lower }}">
+                            {{ entry.sentiment_label }}
+                        </span>
+                    </div>
+                    <p class="entry-excerpt">{{ entry.content[:200] }}{% if entry.content|length > 200 %}…{% endif %}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="no-data-note">No journal entries yet.</p>
+            {% endif %}
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- ── Achievements ── -->
+        <section class="report-section">
+            <h2>🏅 Achievements</h2>
+            {% if badges %}
+            <div class="badges-row">
+                {% for badge in badges %}
+                <div class="report-badge" style="border-color: {{ badge.color }};">
+                    <span class="rb-emoji">{{ badge.emoji }}</span>
+                    <span class="rb-name">{{ badge.name }}</span>
+                    <span class="rb-tier" style="color: {{ badge.color }};">{{ badge.tier | upper }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% if stats %}
+            <p class="stats-summary">
+                🔥 Current streak: <strong>{{ stats.streak_days }} days</strong> &nbsp;|&nbsp;
+                ⚡ Longest streak: <strong>{{ stats.longest_streak }} days</strong> &nbsp;|&nbsp;
+                📓 Total journals: <strong>{{ stats.total_journals }}</strong>
+            </p>
+            {% endif %}
+            {% else %}
+            <p class="no-data-note">No badges earned yet — keep going!</p>
+            {% endif %}
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- ── Personalized Recommendations ── -->
+        <section class="report-section">
+            <h2>💡 Personalized Wellness Recommendations</h2>
+
+            <h3>Breathing Exercises</h3>
+            <ul class="rec-list">
+                {% for b in rec.breathing %}
+                <li><strong>{{ b.icon }} {{ b.name }}</strong> ({{ b.duration }}) — {{ b.description }}</li>
+                {% endfor %}
+            </ul>
+
+            <h3>Grounding Techniques</h3>
+            <ul class="rec-list">
+                {% for g in rec.grounding %}
+                <li><strong>{{ g.icon }} {{ g.name }}</strong> — {{ g.description }}</li>
+                {% endfor %}
+            </ul>
+
+            <h3>CBT Journal Prompts</h3>
+            <ol class="rec-list">
+                {% for prompt in rec.cbt_prompts %}
+                <li>{{ prompt }}</li>
+                {% endfor %}
+            </ol>
+
+            <h3>Lifestyle Tips</h3>
+            <ul class="rec-list">
+                {% for tip in rec.lifestyle %}
+                <li>{{ tip }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- ── Disclaimer ── -->
+        <footer class="report-footer">
+            <p>
+                ⚠️ <strong>Disclaimer:</strong> MindTrack is an informational self-care tool only.
+                It is <strong>not</strong> a substitute for professional medical advice, diagnosis, or treatment.
+                If you are in crisis, please call a helpline or visit a healthcare professional immediately.
+            </p>
+            <p class="report-brand-small">🧠 MindTrack — AI Mental Wellness Platform</p>
+        </footer>
+    </div>
+
+    <script>
+        // Auto-trigger print dialog on load if ?print=1
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('print') === '1') {
+            window.addEventListener('load', () => setTimeout(() => window.print(), 500));
+        }
+    </script>
+</body>
+</html>

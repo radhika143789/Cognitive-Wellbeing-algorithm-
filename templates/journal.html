@@ -14,11 +14,13 @@
     <div class="background-animation"></div>
 
     <nav class="navbar glass">
-        <a href="{{ url_for('home') }}" class="logo">🧠 MindTrack</a>
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
         <div class="nav-links">
             {% if current_user.is_authenticated %}
-                <a href="{{ url_for('home') }}">Assess</a>
+                <a href="{{ url_for('assess') }}">Assess</a>
                 <a href="{{ url_for('journal') }}" class="nav-active">Journal</a>
+                <a href="{{ url_for('cbt') }}">CBT</a>
+                <a href="{{ url_for('resources') }}">Resources</a>
                 <a href="{{ url_for('dashboard') }}">Dashboard</a>
                 <span class="user-greeting">Hi, {{ current_user.username }}</span>
                 <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
@@ -28,6 +30,7 @@
             {% endif %}
         </div>
     </nav>
+
 
     <main class="container" style="padding-top: 5rem; max-width: 860px;">
 

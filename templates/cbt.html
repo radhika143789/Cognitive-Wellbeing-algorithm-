@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBT Worksheets — MindTrack</title>
+    <meta name="description" content="Interactive Cognitive Behavioural Therapy worksheets — Thought Records and Behavioural Activation to support your mental wellbeing.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/cbt.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            <a href="{{ url_for('assess') }}">Assess</a>
+            <a href="{{ url_for('journal') }}">Journal</a>
+            <a href="{{ url_for('cbt') }}" class="nav-active">CBT</a>
+            <a href="{{ url_for('resources') }}">Resources</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <span class="user-greeting">Hi, {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container cbt-main">
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                    <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <header class="cbt-header">
+            <h1>🧠 CBT <span class="highlight">Worksheets</span></h1>
+            <p class="cbt-intro">
+                Cognitive Behavioural Therapy tools to help you identify, challenge, and reframe unhelpful thoughts —
+                and plan activities that lift your mood.
+            </p>
+        </header>
+
+        <!-- ── Tab Navigation ── -->
+        <div class="tab-nav" role="tablist">
+            <button class="tab-btn active" id="tab-thought-btn" data-tab="thought" role="tab" aria-selected="true">
+                💭 Thought Record
+            </button>
+            <button class="tab-btn" id="tab-activity-btn" data-tab="activity" role="tab" aria-selected="false">
+                🏃 Behavioural Activation
+            </button>
+            <button class="tab-btn" id="tab-history-btn" data-tab="history" role="tab" aria-selected="false">
+                📋 Past Records
+            </button>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════
+             TAB 1: Thought Record
+        ══════════════════════════════════════════════════════════ -->
+        <div class="tab-panel active" id="tab-thought" role="tabpanel">
+            <div class="card glass cbt-card">
+                <div class="cbt-card-header">
+                    <span class="cbt-card-icon">💭</span>
+                    <div>
+                        <h2>7-Column Thought Record</h2>
+                        <p class="cbt-card-subtitle">
+                            A core CBT technique: write down a distressing situation, identify the hot thought,
+                            weigh the evidence, and arrive at a balanced perspective.
+                        </p>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('cbt_thought_record') }}" class="cbt-form" id="thought-record-form">
+
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label for="situation" class="form-label required">
+                                1️⃣ Situation
+                                <span class="label-hint">What happened? When, where, with whom?</span>
+                            </label>
+                            <textarea id="situation" name="situation" class="cbt-textarea" rows="3"
+                                placeholder="e.g. I made a mistake during the meeting at work…" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="emotions" class="form-label required">
+                                2️⃣ Emotions
+                                <span class="label-hint">What feelings did you notice? Rate intensity 0–100%</span>
+                            </label>
+                            <textarea id="emotions" name="emotions" class="cbt-textarea" rows="3"
+                                placeholder="e.g. Anxious 80%, Embarrassed 60%, Angry 40%…" required></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hot_thought" class="form-label required">
+                            3️⃣ Hot Thought
+                            <span class="label-hint">The most upsetting/automatic thought you had. What went through your mind?</span>
+                        </label>
+                        <textarea id="hot_thought" name="hot_thought" class="cbt-textarea" rows="2"
+                            placeholder="e.g. I'm completely incompetent and everyone saw it…" required></textarea>
+                    </div>
+
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label for="evidence_for" class="form-label">
+                                4️⃣ Evidence <em>Supporting</em> the Thought
+                                <span class="label-hint">Objective facts (not feelings) that support it.</span>
+                            </label>
+                            <textarea id="evidence_for" name="evidence_for" class="cbt-textarea" rows="4"
+                                placeholder="e.g. I stumbled over my words twice. My manager looked at his phone."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="evidence_against" class="form-label">
+                                5️⃣ Evidence <em>Against</em> the Thought
+                                <span class="label-hint">Objective facts that challenge or contradict it.</span>
+                            </label>
+                            <textarea id="evidence_against" name="evidence_against" class="cbt-textarea" rows="4"
+                                placeholder="e.g. My colleague thanked me after. I've delivered good presentations before."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="balanced_thought" class="form-label">
+                            6️⃣ Balanced / Alternative Thought
+                            <span class="label-hint">A more realistic, balanced perspective based on the evidence.</span>
+                        </label>
+                        <textarea id="balanced_thought" name="balanced_thought" class="cbt-textarea" rows="3"
+                            placeholder="e.g. I made a couple of errors, but I also contributed well. One mistake doesn't define my competence."></textarea>
+                    </div>
+
+                    <div class="form-group slider-group">
+                        <label for="outcome_mood" class="form-label">
+                            7️⃣ Outcome Mood
+                            <span class="label-hint">How do you feel now after completing this record? (1 = very low, 10 = excellent)</span>
+                        </label>
+                        <div class="slider-row">
+                            <span class="slider-label-left">😔 1</span>
+                            <input type="range" id="outcome_mood" name="outcome_mood"
+                                   min="1" max="10" value="5" class="mood-slider"
+                                   oninput="document.getElementById('outcome_mood_val').textContent = this.value">
+                            <span class="slider-label-right">10 😊</span>
+                            <span class="mood-display" id="outcome_mood_val">5</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit" id="save-thought-record-btn">
+                            💾 Save Thought Record
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════
+             TAB 2: Behavioural Activation
+        ══════════════════════════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-activity" role="tabpanel">
+            <div class="card glass cbt-card">
+                <div class="cbt-card-header">
+                    <span class="cbt-card-icon">🏃</span>
+                    <div>
+                        <h2>Behavioural Activation Planner</h2>
+                        <p class="cbt-card-subtitle">
+                            Depression often traps us in avoidance. BA breaks the cycle: plan a small activity,
+                            rate your mood before and after to build evidence that action helps.
+                        </p>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('cbt_activity_log') }}" class="cbt-form" id="activity-log-form">
+
+                    <div class="form-group">
+                        <label for="activity" class="form-label required">
+                            🎯 Activity to Try
+                            <span class="label-hint">Small, specific, achievable. (e.g. "10-min walk around the block")</span>
+                        </label>
+                        <input type="text" id="activity" name="activity" class="cbt-input"
+                            placeholder="e.g. Call a friend for 10 minutes, take a short walk…" required>
+                    </div>
+
+                    <div class="form-row two-col">
+                        <div class="form-group slider-group">
+                            <label for="mood_before" class="form-label required">
+                                😔 Mood Before (1–10)
+                            </label>
+                            <div class="slider-row">
+                                <span class="slider-label-left">1</span>
+                                <input type="range" id="mood_before" name="mood_before"
+                                       min="1" max="10" value="5" class="mood-slider"
+                                       oninput="document.getElementById('mb_val').textContent = this.value">
+                                <span class="slider-label-right">10</span>
+                                <span class="mood-display" id="mb_val">5</span>
+                            </div>
+                        </div>
+                        <div class="form-group slider-group">
+                            <label for="mood_after" class="form-label">
+                                😊 Mood After (1–10) <span class="optional-tag">optional</span>
+                            </label>
+                            <div class="slider-row">
+                                <span class="slider-label-left">1</span>
+                                <input type="range" id="mood_after" name="mood_after"
+                                       min="1" max="10" value="5" class="mood-slider"
+                                       oninput="document.getElementById('ma_val').textContent = this.value">
+                                <span class="slider-label-right">10</span>
+                                <span class="mood-display" id="ma_val">5</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes" class="form-label">
+                            📝 Notes <span class="optional-tag">optional</span>
+                            <span class="label-hint">How did it go? What did you notice?</span>
+                        </label>
+                        <textarea id="notes" name="notes" class="cbt-textarea" rows="3"
+                            placeholder="Any observations about how you felt during or after the activity…"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit" id="save-activity-log-btn">
+                            💾 Log Activity
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tips card -->
+            <div class="card glass tips-card">
+                <h3>💡 Behavioural Activation Tips</h3>
+                <ul class="tips-list">
+                    <li>Start <strong>small</strong> — even 5 minutes counts.</li>
+                    <li>Choose activities that used to bring you joy, or try something new.</li>
+                    <li>Don't wait to "feel like it" — act first, motivation follows.</li>
+                    <li>Track your mood before and after to build personal evidence.</li>
+                    <li>Celebrate completing the activity, regardless of how you felt.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════
+             TAB 3: Past Records
+        ══════════════════════════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-history" role="tabpanel">
+
+            <!-- Thought Records History -->
+            <div class="card glass cbt-card">
+                <h2 id="thought-records">💭 Past Thought Records</h2>
+                {% if thought_records %}
+                <div class="history-list">
+                    {% for rec in thought_records %}
+                    <details class="history-item">
+                        <summary class="history-summary">
+                            <span class="history-date">{{ rec.timestamp.strftime('%d %b %Y, %H:%M') }}</span>
+                            <span class="history-preview">{{ rec.situation[:70] }}{% if rec.situation|length > 70 %}…{% endif %}</span>
+                            {% if rec.outcome_mood %}
+                            <span class="history-mood mood-{{ rec.outcome_mood }}">
+                                Mood: {{ rec.outcome_mood }}/10
+                            </span>
+                            {% endif %}
+                        </summary>
+                        <div class="history-detail">
+                            <div class="detail-row"><span class="detail-label">Situation</span><p>{{ rec.situation }}</p></div>
+                            <div class="detail-row"><span class="detail-label">Emotions</span><p>{{ rec.emotions }}</p></div>
+                            <div class="detail-row hot-thought-row"><span class="detail-label">Hot Thought</span><p>{{ rec.hot_thought }}</p></div>
+                            {% if rec.evidence_for %}
+                            <div class="detail-row"><span class="detail-label">Evidence For</span><p>{{ rec.evidence_for }}</p></div>
+                            {% endif %}
+                            {% if rec.evidence_against %}
+                            <div class="detail-row"><span class="detail-label">Evidence Against</span><p>{{ rec.evidence_against }}</p></div>
+                            {% endif %}
+                            {% if rec.balanced_thought %}
+                            <div class="detail-row balanced-row"><span class="detail-label">Balanced Thought</span><p>{{ rec.balanced_thought }}</p></div>
+                            {% endif %}
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="empty-state-cbt">No thought records yet. Complete your first one in the Thought Record tab.</p>
+                {% endif %}
+            </div>
+
+            <!-- Activity Logs History -->
+            <div class="card glass cbt-card" style="margin-top: 1.5rem;">
+                <h2 id="activity-logs">🏃 Past Activity Logs</h2>
+                {% if activity_logs %}
+                <div class="activity-history">
+                    {% for log in activity_logs %}
+                    <div class="activity-item">
+                        <div class="activity-main">
+                            <span class="activity-name">{{ log.activity }}</span>
+                            <span class="activity-date">{{ log.planned_at.strftime('%d %b %Y') }}</span>
+                        </div>
+                        <div class="activity-moods">
+                            <span class="mood-chip mood-before-chip">Before: {{ log.mood_before }}/10</span>
+                            {% if log.mood_after %}
+                            <span class="mood-chip mood-after-chip {% if log.mood_after >= log.mood_before %}mood-improved{% else %}mood-dipped{% endif %}">
+                                After: {{ log.mood_after }}/10
+                                {% if log.mood_after > log.mood_before %}↑{% elif log.mood_after < log.mood_before %}↓{% else %}→{% endif %}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if log.notes %}
+                        <p class="activity-notes">{{ log.notes }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="empty-state-cbt">No activities logged yet. Use the Behavioural Activation tab to get started.</p>
+                {% endif %}
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // ── Tab switching ──
+        const tabBtns   = document.querySelectorAll('.tab-btn');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.tab;
+                tabBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+                tabPanels.forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                btn.setAttribute('aria-selected', 'true');
+                document.getElementById(`tab-${target}`).classList.add('active');
+            });
+        });
+
+        // ── Auto-select history tab if URL has #thought-records or #activity-logs ──
+        if (window.location.hash === '#thought-records' || window.location.hash === '#activity-logs') {
+            document.getElementById('tab-history-btn').click();
+        }
+    </script>
+</body>
+</html>
