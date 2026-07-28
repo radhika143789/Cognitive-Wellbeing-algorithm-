@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Wellness Plan — MindTrack</title>
+    <meta name="description" content="Personalized mental wellness exercises, breathing techniques, and CBT prompts based on your assessment score.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/resources.css') }}">
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('assess') }}">Assess</a>
+                <a href="{{ url_for('journal') }}">Journal</a>
+                <a href="{{ url_for('resources') }}" class="nav-active">Resources</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="user-greeting">Hi, {{ current_user.username }}</span>
+                <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+            {% else %}
+                <a href="{{ url_for('crisis') }}" style="color:#ef4444">🆘 Crisis</a>
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}" class="nav-btn-outline">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="resources-main">
+
+        <!-- Hero Banner -->
+        <div class="resources-hero">
+            <div class="resources-score-pill" style="background: {{ rec.color }}22; border-color: {{ rec.color }}; color: {{ rec.color }};">
+                {{ rec.emoji }} {{ rec.score_band | capitalize }} — Score {{ score }}/100
+            </div>
+            <h1>Your Personal <span class="highlight">Wellness Plan</span></h1>
+            <p>{{ rec.headline }}</p>
+
+            {% if rec.crisis_needed %}
+            <a href="{{ url_for('crisis') }}" class="crisis-alert-banner">
+                🆘 Your score indicates you may need immediate support — Click here for crisis resources
+            </a>
+            {% endif %}
+
+            {% if rec.triggered %}
+            <div class="triggered-tags">
+                <span style="color:var(--text-muted); font-size: 0.85rem;">Elevated indicators:</span>
+                {% for t in rec.triggered %}
+                <span class="triggered-tag">{{ t.replace('_', ' ') }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ── BREATHING EXERCISES ── -->
+        <section class="resource-section">
+            <h2 class="section-heading">🌬️ Breathing Exercises</h2>
+            <p class="section-sub">Controlled breathing activates your parasympathetic nervous system — reducing cortisol in minutes.</p>
+            <div class="breathing-grid">
+                {% for ex in rec.breathing %}
+                <div class="card glass breathing-card" id="breath-card-{{ loop.index }}">
+                    <div class="breath-icon">{{ ex.icon }}</div>
+                    <h3>{{ ex.name }}</h3>
+                    <p>{{ ex.description }}</p>
+                    <div class="breath-meta">
+                        <span>⏱ {{ ex.duration }}</span>
+                        <span>✨ {{ ex.best_for }}</span>
+                    </div>
+
+                    <!-- Interactive breathing timer -->
+                    <div class="breath-timer hidden" id="timer-{{ loop.index }}">
+                        <div class="breath-ring-wrap">
+                            <div class="breath-ring" id="ring-{{ loop.index }}">
+                                <span class="breath-phase-label" id="phase-label-{{ loop.index }}">Ready</span>
+                                <span class="breath-phase-count" id="phase-count-{{ loop.index }}"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn-primary breath-start-btn"
+                        onclick="startExercise({{ loop.index }}, {{ ex.phases | tojson }}, {{ ex.labels | tojson }})">
+                        Start Exercise
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- ── GROUNDING TECHNIQUES ── -->
+        <section class="resource-section">
+            <h2 class="section-heading">🌿 Grounding Techniques</h2>
+            <p class="section-sub">When anxiety or dissociation strikes, grounding brings you back to the present moment.</p>
+            <div class="grounding-cards">
+                {% for g in rec.grounding %}
+                <div class="card glass grounding-card">
+                    <span class="ground-icon">{{ g.icon }}</span>
+                    <div>
+                        <h3>{{ g.name }}</h3>
+                        <p>{{ g.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- ── CBT JOURNAL PROMPTS ── -->
+        <section class="resource-section">
+            <h2 class="section-heading">📝 CBT Reflection Prompts</h2>
+            <p class="section-sub">Cognitive Behavioural Therapy exercises to challenge unhelpful thought patterns. Try one per day.</p>
+            <div class="prompts-grid">
+                {% for prompt in rec.cbt_prompts %}
+                <div class="card glass prompt-card">
+                    <span class="prompt-num">{{ loop.index }}</span>
+                    <p>{{ prompt }}</p>
+                    <a href="{{ url_for('journal') }}" class="prompt-journal-btn">Write in Journal →</a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- ── LIFESTYLE TIPS ── -->
+        <section class="resource-section">
+            <h2 class="section-heading">🌱 Lifestyle Recommendations</h2>
+            <p class="section-sub">Small, consistent changes compound into meaningful improvements in mental well-being.</p>
+            <div class="lifestyle-list">
+                {% for tip in rec.lifestyle %}
+                <div class="lifestyle-item glass">{{ tip }}</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- ── ALWAYS VISIBLE CRISIS LINE ── -->
+        <section class="card glass crisis-footer-card">
+            <h3>💙 Always Here For You</h3>
+            <p>Remember: these exercises complement, not replace, professional support.</p>
+            <div class="crisis-quick-links">
+                <a href="tel:9152987821" class="crisis-quick-btn">📞 iCall India — 9152987821</a>
+                <a href="tel:988" class="crisis-quick-btn">📞 988 Lifeline (US)</a>
+                <a href="{{ url_for('crisis') }}" class="crisis-quick-btn" style="background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #f87171;">🆘 Full Crisis Page</a>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const activeTimers = {};
+
+        function startExercise(id, phases, labels) {
+            const timerEl = document.getElementById(`timer-${id}`);
+            const btn = timerEl.closest('.breathing-card').querySelector('.breath-start-btn');
+            const ringEl = document.getElementById(`ring-${id}`);
+            const labelEl = document.getElementById(`phase-label-${id}`);
+            const countEl = document.getElementById(`phase-count-${id}`);
+
+            if (activeTimers[id]) {
+                clearInterval(activeTimers[id]);
+                delete activeTimers[id];
+                timerEl.classList.add('hidden');
+                btn.textContent = 'Start Exercise';
+                return;
+            }
+
+            timerEl.classList.remove('hidden');
+            btn.textContent = 'Stop';
+
+            const activePhaseDurations = phases.filter(p => p > 0);
+            const activePhaseLabels   = labels.filter((l, i) => phases[i] > 0);
+
+            let phaseIdx = 0, count = activePhaseDurations[0];
+
+            const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+
+            function runPhase() {
+                labelEl.textContent = activePhaseLabels[phaseIdx] || '';
+                countEl.textContent = count;
+                ringEl.style.borderColor = colors[phaseIdx % colors.length];
+                ringEl.style.boxShadow = `0 0 32px ${colors[phaseIdx % colors.length]}55`;
+            }
+
+            runPhase();
+            activeTimers[id] = setInterval(() => {
+                count--;
+                countEl.textContent = count;
+                if (count <= 0) {
+                    phaseIdx = (phaseIdx + 1) % activePhaseDurations.length;
+                    count = activePhaseDurations[phaseIdx];
+                    runPhase();
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

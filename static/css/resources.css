@@ -1,0 +1,343 @@
+/* ═══════════════════════════════════════════
+   resources.css — Wellness Resources & Crisis
+   ═══════════════════════════════════════════ */
+
+.resources-main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 5rem 1.5rem 6rem;
+}
+
+/* ─── Hero ─── */
+.resources-hero {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+.resources-score-pill {
+    display: inline-block;
+    border: 1px solid;
+    border-radius: 999px;
+    padding: 0.4rem 1.4rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 1.2rem;
+}
+.resources-hero h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 800;
+    margin-bottom: 0.8rem;
+}
+.resources-hero > p {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 540px;
+    margin: 0 auto 1.5rem;
+    line-height: 1.65;
+}
+.crisis-alert-banner {
+    display: block;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    text-decoration: none;
+    transition: background 0.2s;
+    animation: pulseRed 2s ease-in-out infinite;
+}
+.crisis-alert-banner:hover { background: rgba(239, 68, 68, 0.2); }
+@keyframes pulseRed {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    50%       { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.15); }
+}
+.triggered-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+.triggered-tag {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.25rem 0.8rem;
+    border-radius: 999px;
+}
+
+/* ─── Sections ─── */
+.resource-section {
+    margin-bottom: 3.5rem;
+}
+.section-heading {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+}
+.section-sub {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+/* ─── Breathing cards ─── */
+.breathing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.2rem;
+}
+.breathing-card {
+    padding: 1.8rem;
+    text-align: center;
+    transition: transform 0.3s;
+}
+.breathing-card:hover { transform: translateY(-4px); }
+.breath-icon { font-size: 2.2rem; margin-bottom: 0.8rem; }
+.breathing-card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+}
+.breathing-card > p {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+.breath-meta {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1.2rem;
+}
+.breath-start-btn {
+    width: auto !important;
+    padding: 0.6rem 1.6rem !important;
+    font-size: 0.9rem !important;
+    margin: 0 auto;
+}
+
+/* ─── Breath timer ring ─── */
+.breath-timer { margin: 1rem auto; }
+.breath-ring-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+.breath-ring {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    border: 4px solid #3b82f6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.5s, box-shadow 0.5s, transform 0.8s ease-in-out;
+}
+.breath-phase-label {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+.breath-phase-count {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+/* ─── Grounding cards ─── */
+.grounding-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.grounding-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.2rem;
+    padding: 1.4rem 1.6rem;
+}
+.ground-icon { font-size: 1.8rem; flex-shrink: 0; margin-top: 0.2rem; }
+.grounding-card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+.grounding-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+
+/* ─── CBT prompts ─── */
+.prompts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.2rem;
+}
+.prompt-card {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.prompt-num {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #3b82f6, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+.prompt-card p {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    flex: 1;
+}
+.prompt-journal-btn {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #60a5fa;
+    text-decoration: none;
+    transition: color 0.2s;
+    align-self: flex-start;
+}
+.prompt-journal-btn:hover { color: #93c5fd; }
+
+/* ─── Lifestyle ─── */
+.lifestyle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+.lifestyle-item {
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    font-size: 0.97rem;
+    line-height: 1.5;
+}
+
+/* ─── Crisis footer card ─── */
+.crisis-footer-card {
+    padding: 2rem;
+    margin-top: 2rem;
+    border-left: 3px solid #3b82f6;
+}
+.crisis-footer-card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+.crisis-footer-card > p { color: var(--text-muted); margin-bottom: 1.2rem; font-size: 0.9rem; }
+.crisis-quick-links { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.crisis-quick-btn {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    color: #93c5fd;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+.crisis-quick-btn:hover { background: rgba(59, 130, 246, 0.2); }
+
+/* ─── Crisis page specific ─── */
+.crisis-hero {
+    text-align: center;
+    padding: 3rem 0 2rem;
+}
+.crisis-pulse-dot {
+    width: 16px;
+    height: 16px;
+    background: #ef4444;
+    border-radius: 50%;
+    margin: 0 auto 1.5rem;
+    animation: pulseDot 1.5s ease-in-out infinite;
+}
+@keyframes pulseDot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); transform: scale(1); }
+    50%       { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); transform: scale(1.1); }
+}
+.crisis-hero h1 { font-family: 'Outfit', sans-serif; font-size: 2.5rem; font-weight: 800; margin-bottom: 0.8rem; }
+.crisis-hero > p { color: var(--text-muted); font-size: 1.1rem; }
+
+.hotlines-card { padding: 2rem; margin-top: 2rem; }
+.hotlines-card h2 { margin-bottom: 1.5rem; font-family: 'Outfit', sans-serif; font-weight: 700; }
+.hotlines-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+}
+.hotline-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.2rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s;
+}
+.hotline-item:hover { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); }
+.hotline-flag { font-size: 1.8rem; flex-shrink: 0; }
+.hotline-item div { display: flex; flex-direction: column; gap: 0.1rem; }
+.hotline-item strong { color: var(--text-main); font-size: 0.95rem; }
+.hotline-item span { color: #60a5fa; font-size: 0.92rem; font-weight: 600; }
+.hotline-item small { color: var(--text-muted); font-size: 0.75rem; }
+
+.grounding-steps { display: flex; flex-direction: column; gap: 1rem; }
+.grounding-step {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.8rem 1rem;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    text-align: left;
+}
+.grounding-num { font-family: 'Outfit', sans-serif; font-size: 2.5rem; font-weight: 900; min-width: 40px; line-height: 1; }
+.grounding-step strong { display: block; font-size: 1rem; margin-bottom: 0.2rem; }
+.grounding-step p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+
+/* Breathing box on crisis page */
+.breath-box {
+    width: 160px;
+    height: 160px;
+    border-radius: 24px;
+    border: 3px solid #3b82f6;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.8s ease-in-out, border-color 0.8s;
+}
+.breath-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 1s ease-in-out;
+    font-family: 'Outfit', sans-serif;
+}
+#breath-text { font-size: 1.1rem; font-weight: 600; }
+#breath-count { font-size: 2.5rem; font-weight: 900; color: #60a5fa; }
+
+/* Utility */
+.hidden { display: none !important; }
+
+@media (max-width: 600px) {
+    .breathing-grid { grid-template-columns: 1fr; }
+    .crisis-hero h1 { font-size: 1.8rem; }
+    .hotlines-grid { grid-template-columns: 1fr; }
+}

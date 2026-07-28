@@ -1,117 +1,212 @@
-# Cognitive-Wellbeing-algorithm
+# 🧠 MindTrack — AI-Powered Mental Wellness Platform
 
-# AI Mental Fitness Tracker
-A data-driven project that leverages machine learning to track and analyze mental fitness based on global mental health disorder data. This project includes data cleaning, visualization, and predictive modeling to assess cognitive well-being trends worldwide.
+> A full-stack Flask web application that uses clinical questionnaires, NLP sentiment analysis, and machine learning to provide personalized mental fitness scores, daily mood journaling, and evidence-based wellness resources.
 
----
-
-## 📌 Problem Statement
-
-Mental health is a vital component of overall well-being. With rising cases of disorders like anxiety, depression, and substance abuse globally, it is essential to analyze trends and understand their impact. This project aims to:
-
-- Analyze the prevalence of mental and substance use disorders.
-- Explore correlations with overall mental fitness.
-- Build machine learning models to predict mental fitness based on health indicators.
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.x-000000?style=flat&logo=flask)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-RandomForest-F7931E?style=flat&logo=scikit-learn)
+![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?style=flat&logo=sqlite)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 
 ---
 
-## 📂 Datasets Used
+## 📸 Features at a Glance
 
-1. [`prevalence-by-mental-and-substance-use-disorder.csv`](https://ourworldindata.org/)
-2. [`mental-and-substance-use-as-share-of-disease.csv`](https://ourworldindata.org/)
-
-These datasets include:
-- Mental disorder prevalence (schizophrenia, depression, etc.)
-- Substance use data (alcohol, drug use)
-- Year-wise and country-wise records
-- Combined indicators of cognitive and mental fitness
-
----
-
-## 🛠️ Libraries and Tools
-
-- `numpy`, `pandas` – Data manipulation
-- `matplotlib`, `seaborn`, `plotly` – Data visualization
-- `sklearn` – Machine learning (regression models)
-- `LabelEncoder`, `train_test_split`, `LinearRegression`, `RandomForestRegressor`
+| Feature | Description |
+|---|---|
+| 🎯 **Clinical Questionnaire** | 18 PHQ-9/GAD-7/AUDIT-inspired questions extract 7 disorder prevalence scores |
+| 🤖 **AI Fitness Score** | Random Forest model (R²=0.83) predicts mental fitness 0–100 |
+| 📓 **Mood Journal + NLP** | VADER sentiment analysis enriches ML predictions via journal mood |
+| 📈 **Progress Dashboard** | Chart.js interactive line graph tracks score history over time |
+| 🌬️ **Breathing Exercises** | Interactive 4-7-8, Box, and Coherent breathing timers |
+| 📝 **CBT Prompts** | Evidence-based cognitive behavioural therapy journal prompts |
+| 🆘 **Crisis Support** | 24/7 hotlines, grounding exercises, always one click away |
+| 🔐 **Secure Auth** | Flask-Login sessions with Werkzeug bcrypt password hashing |
 
 ---
 
-## 📊 Exploratory Data Analysis
+## 🚀 Quick Start
 
-- Merged datasets for unified analysis.
-- Performed null checks and cleaned data.
-- Visualized patterns using:
-  - Correlation heatmaps
-  - Pair plots
-  - Time-series line charts
-  - Pie charts for year-wise distribution
+### 1. Clone the repository
+```bash
+git clone https://github.com/radhika143789/Cognitive-Wellbeing-algorithm-.git
+cd Cognitive-Wellbeing-algorithm-
+```
 
-### 🔍 Key Insight:
-> Eating disorders and anxiety are strongly correlated with mental fitness, indicating dietary and psychological habits significantly affect well-being.
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
 
----
+### 3. Train the ML model
+```bash
+python train_model.py
+```
+This generates 5,000 synthetic respondents and trains the Random Forest.
+Expected output:
+```
+Generating questionnaire-derived synthetic dataset ...
+Training on 4000 samples ...
+Test MSE  : ~27
+Test R²   : ~0.83
+model.pkl saved successfully [OK]
+```
 
-## 🤖 Machine Learning Models
-
-**Target Variable:** `mental_fitness`
-
-### Models Used:
-- **Linear Regression**
-- **Random Forest Regressor**
-
-### Model Performance:
-
-| Model                  | Dataset | R² Score | RMSE      |
-|------------------------|---------|----------|-----------|
-| Linear Regression      | Train   | ~0.90    | High      |
-| Linear Regression      | Test    | ~0.89    | Medium    |
-| Random Forest Regressor| Train   | ~0.99    | Very Low  |
-| Random Forest Regressor| Test    | ~0.95    | Low       |
-
----
-
-## 🧾 Results & Conclusion
-
-- Random Forest outperformed Linear Regression, showing better accuracy in mental fitness predictions.
-- Strong correlations observed between eating habits, anxiety, and overall cognitive health.
-- This model can form the basis for building future mental health support tools and dashboards.
+### 4. Run the application
+```bash
+python app.py
+```
+Open your browser at **http://127.0.0.1:5000**
 
 ---
 
 ## 📁 Project Structure
 
 ```
-
-.
-├── Cognitive\_Wellbeing\_Monitoring.ipynb  # Main notebook
-├── data/
-│   ├── prevalence-by-mental-and-substance-use-disorder.csv
-│   └── mental-and-substance-use-as-share-of-disease.csv
-├── README.md
-└── AI\_Mental\_Fitness\_Tracker\_Report.pdf
-
+Cognitive-Wellbeing-algorithm-/
+│
+├── app.py                      # Flask application & all routes
+├── models.py                   # SQLAlchemy DB models (User, AssessmentResult, JournalEntry)
+├── nlp_service.py              # VADER NLP sentiment analysis helper
+├── questionnaire_extractor.py  # Maps 18 clinical questions → 7 disorder scores
+├── resources.py                # Insights engine: score → personalized recommendations
+├── train_model.py              # ML training pipeline (Random Forest)
+├── requirements.txt            # Python dependencies
+├── .gitignore                  # Excludes model.pkl, *.db, __pycache__
+│
+├── static/
+│   ├── css/
+│   │   ├── style.css           # Global glassmorphism design system
+│   │   ├── landing.css         # Landing page styles
+│   │   ├── assess.css          # Questionnaire wizard & result styles
+│   │   └── resources.css       # Resources & crisis page styles
+│   └── js/
+│       └── main.js             # Frontend utility scripts
+│
+└── templates/
+    ├── landing.html            # Public marketing/landing page
+    ├── assess.html             # Multi-step clinical questionnaire + result
+    ├── journal.html            # Daily mood journal with NLP analysis
+    ├── dashboard.html          # Progress chart (Chart.js)
+    ├── resources.html          # Personalized wellness exercises & CBT prompts
+    ├── crisis.html             # Crisis hotlines + grounding exercises
+    ├── login.html              # Login page
+    └── register.html           # Registration page
 ```
 
 ---
 
-## 🚀 Future Improvements
+## 🧬 ML Architecture
 
-- Deploy model using Streamlit or Flask.
-- Integrate real-time data collection via surveys or APIs.
-- Expand to classification (mental risk levels) and time-series forecasting.
+### Feature Extraction Pipeline
+```
+18 Clinical Questions
+        ↓
+questionnaire_extractor.py
+        ↓
+7 Disorder Prevalence Estimates (%)
+  • Schizophrenia         (0.10 – 1.00%)
+  • Bipolar Disorder      (0.50 – 2.00%)
+  • Eating Disorders      (0.10 – 1.50%)
+  • Anxiety Disorders     (2.00 – 8.00%)
+  • Drug Use Disorders    (0.20 – 3.00%)
+  • Depressive Disorders  (2.00 – 7.00%)
+  • Alcohol Use Disorders (0.50 – 5.00%)
+        +
+Journal Sentiment Score (VADER compound, –1 to +1)
+        ↓
+Random Forest Regressor (200 trees)
+        ↓
+Mental Fitness Score (0 – 100)
+```
+
+### Training Data
+- **5,000 synthetic respondents** generated via `train_model.py`
+- Severity sampled from `Beta(2, 5)` distribution (skewed healthy)
+- Journal sentiment correlated inversely with severity + Gaussian noise
+- **Test R² = 0.83**, MSE ≈ 27
 
 ---
 
-## 👩‍💻 Author
+## 🗂️ Phase Breakdown
 
-**Radhika Khattar**  
-💼 MCA Graduate | Full Stack Developer | Cybersecurity & AI Intern  
-🔗 [LinkedIn](https://www.linkedin.com/in/radhika-khattar)
+### Phase 1 — User Authentication & Progress Tracking
+- SQLite database with Flask-SQLAlchemy
+- Secure registration/login (pbkdf2:sha256 hashing)
+- `AssessmentResult` model — stores score + timestamp per user
+- Dashboard with Chart.js line graph of historical scores
+
+### Phase 2 — Daily Mood Journal & NLP Sentiment Analysis
+- `JournalEntry` model — stores text, VADER compound score, label
+- VADER NLP engine (`nlp_service.py`) — Positive / Neutral / Negative
+- Animated sentiment result card with breakdown bars (pos/neu/neg %)
+- Past entries list with color-coded sentiment badges
+
+### Phase 3 — Clinical Questionnaire + ML Pipeline
+- Replaced raw prevalence inputs with 18 guided clinical questions
+- `questionnaire_extractor.py` maps answers to 7 WHO disorder categories
+- Journal sentiment enriches the anxiety & depression feature estimates
+- Random Forest retrained on questionnaire-derived synthetic data
+- Multi-step wizard UI with progress bar, animated result ring
+- Feature breakdown table on result page
+
+### Phase 4 — Personalized Resources & Crisis Management
+- `resources.py` insights engine — score band + triggered disorders → recommendations
+- Interactive breathing exercise timers (Box, 4-7-8, Coherent)
+- 5-4-3-2-1 grounding techniques (context-matched to triggered disorders)
+- CBT reflection prompts linked directly to the journal
+- Dedicated `/crisis` page with global hotlines + live box breathing widget
+- Crisis banner auto-shown on result page when score < 30
+
+---
+
+## 🌐 Routes
+
+| Route | Auth | Description |
+|---|---|---|
+| `GET /` | Public | Landing / marketing page |
+| `GET /assess` | Public | Multi-step questionnaire |
+| `POST /assess` | Public | Process answers, run ML, show result |
+| `GET /journal` | 🔒 Login | View journal + past entries |
+| `POST /journal` | 🔒 Login | Submit entry, run NLP analysis |
+| `GET /dashboard` | 🔒 Login | View historical score chart |
+| `GET /resources` | Public | Personalized wellness plan |
+| `GET /crisis` | Public | Crisis hotlines & grounding |
+| `GET /login` | Public | Login form |
+| `POST /login` | Public | Authenticate |
+| `GET /register` | Public | Registration form |
+| `POST /register` | Public | Create account |
+| `GET /logout` | 🔒 Login | End session |
+
+---
+
+## ⚙️ Requirements
+
+```
+flask
+flask-sqlalchemy
+flask-login
+scikit-learn
+pandas
+numpy
+joblib
+vaderSentiment
+```
+
+Install with: `pip install -r requirements.txt`
+
+---
+
+## ⚠️ Disclaimer
+
+> MindTrack is an **informational and self-care tool only**. It is **not** a substitute for professional medical advice, diagnosis, or treatment. If you are experiencing a mental health crisis, please contact a qualified healthcare professional or a crisis hotline immediately.
 
 ---
 
 ## 📜 License
 
-This project is open-source and available under the [MIT License](LICENSE).
+MIT License — see [LICENSE](LICENSE) for details.
 
+---
+
+*Built with ❤️ as a full-stack ML + Flask project.*

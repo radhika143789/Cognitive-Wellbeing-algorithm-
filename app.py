@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, AssessmentResult, JournalEntry
 from nlp_service import analyze_sentiment
 from questionnaire_extractor import extract_features, QUESTIONS
+from resources import get_recommendations
 import joblib
 import numpy as np
 
@@ -199,6 +200,37 @@ def journal():
         .all()
     )
     return render_template('journal.html', result=result, entries=entries)
+
+
+# ─────────────────────────── RESOURCES & CRISIS ───────────────────────────
+
+@app.route('/resources')
+def resources():
+    """
+    Personalized recommendations based on the most recent assessment.
+    Falls back to a neutral score if no assessment exists.
+    """
+    score    = 50.0
+    features = {}
+    if current_user.is_authenticated:
+        latest = (
+            AssessmentResult.query
+            .filter_by(user_id=current_user.id)
+            .order_by(AssessmentResult.timestamp.desc())
+            .first()
+        )
+        if latest:
+            score = latest.score
+        # Pull the most recently stored feature snapshot if available
+        # (For now we derive from score band — features are stateless)
+    rec = get_recommendations(score, features)
+    return render_template('resources.html', rec=rec, score=round(score, 1))
+
+
+@app.route('/crisis')
+def crisis():
+    """Public crisis support page — no login required."""
+    return render_template('crisis.html')
 
 
 if __name__ == '__main__':

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crisis Support — MindTrack</title>
+    <meta name="description" content="Immediate crisis support resources, hotlines, and grounding exercises. You are not alone.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/resources.css') }}">
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            <a href="{{ url_for('crisis') }}" class="nav-active" style="color:#ef4444 !important;">🆘 Crisis</a>
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('assess') }}">Assess</a>
+                <a href="{{ url_for('journal') }}">Journal</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}" class="nav-btn-outline">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="resources-main" style="padding-top: 5rem; max-width: 800px; margin: 0 auto; padding-left: 1.5rem; padding-right: 1.5rem;">
+
+        <div class="crisis-hero">
+            <div class="crisis-pulse-dot"></div>
+            <h1>You Are <span style="color:#ef4444">Not Alone</span></h1>
+            <p>If you're in crisis or struggling, help is available right now — for free, 24/7.</p>
+        </div>
+
+        <!-- Emergency hotlines -->
+        <section class="card glass hotlines-card">
+            <h2>📞 Immediate Help — Call or Text Now</h2>
+            <div class="hotlines-grid">
+                <a href="tel:9152987821" class="hotline-item">
+                    <span class="hotline-flag">🇮🇳</span>
+                    <div>
+                        <strong>iCall (India)</strong>
+                        <span>9152987821</span>
+                        <small>Mon–Sat, 8am–10pm</small>
+                    </div>
+                </a>
+                <a href="tel:18602662345" class="hotline-item">
+                    <span class="hotline-flag">🇮🇳</span>
+                    <div>
+                        <strong>Vandrevala Foundation</strong>
+                        <span>1860-2662-345</span>
+                        <small>24/7 • Free</small>
+                    </div>
+                </a>
+                <a href="tel:988" class="hotline-item">
+                    <span class="hotline-flag">🇺🇸</span>
+                    <div>
+                        <strong>988 Lifeline (US)</strong>
+                        <span>Call or Text 988</span>
+                        <small>24/7 • Free & Confidential</small>
+                    </div>
+                </a>
+                <a href="tel:116123" class="hotline-item">
+                    <span class="hotline-flag">🇬🇧</span>
+                    <div>
+                        <strong>Samaritans (UK)</strong>
+                        <span>116 123</span>
+                        <small>24/7 • Free</small>
+                    </div>
+                </a>
+                <a href="https://www.befrienders.org" target="_blank" class="hotline-item">
+                    <span class="hotline-flag">🌍</span>
+                    <div>
+                        <strong>Befrienders Worldwide</strong>
+                        <span>befrienders.org</span>
+                        <small>Global directory</small>
+                    </div>
+                </a>
+                <a href="https://www.crisistextline.org" target="_blank" class="hotline-item">
+                    <span class="hotline-flag">💬</span>
+                    <div>
+                        <strong>Crisis Text Line</strong>
+                        <span>Text HOME to 741741</span>
+                        <small>US • 24/7 • Text-based</small>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- Immediate grounding -->
+        <section class="card glass" style="padding: 2rem; margin-top: 1.5rem;">
+            <h2>🧘 Right Now: Try This Grounding Exercise</h2>
+            <p style="color:var(--text-muted); margin-bottom: 1.5rem;">The 5-4-3-2-1 technique can quickly reduce panic by anchoring you to the present moment.</p>
+            <div class="grounding-steps">
+                <div class="grounding-step">
+                    <span class="grounding-num" style="color:#3b82f6">5</span>
+                    <div><strong>See</strong><p>Name 5 things you can see right now</p></div>
+                </div>
+                <div class="grounding-step">
+                    <span class="grounding-num" style="color:#8b5cf6">4</span>
+                    <div><strong>Touch</strong><p>Name 4 things you can physically feel</p></div>
+                </div>
+                <div class="grounding-step">
+                    <span class="grounding-num" style="color:#10b981">3</span>
+                    <div><strong>Hear</strong><p>Name 3 sounds you can hear around you</p></div>
+                </div>
+                <div class="grounding-step">
+                    <span class="grounding-num" style="color:#f59e0b">2</span>
+                    <div><strong>Smell</strong><p>Name 2 things you can smell</p></div>
+                </div>
+                <div class="grounding-step">
+                    <span class="grounding-num" style="color:#ef4444">1</span>
+                    <div><strong>Taste</strong><p>Name 1 thing you can taste right now</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breathing -->
+        <section class="card glass" style="padding: 2rem; margin-top: 1.5rem; text-align:center;">
+            <h2>🌬️ Quick Breathing Reset (Box Breathing)</h2>
+            <p style="color:var(--text-muted); margin-bottom: 2rem;">Follow the animation. 4 counts in, 4 hold, 4 out, 4 hold.</p>
+            <div class="breath-box" id="breath-box">
+                <div class="breath-inner" id="breath-inner">
+                    <span id="breath-text">Inhale</span>
+                    <span id="breath-count">4</span>
+                </div>
+            </div>
+            <button id="breath-btn" class="btn-primary" style="margin-top:2rem; width:auto; padding: 0.8rem 2rem;" onclick="startBreathing()">Start</button>
+        </section>
+
+        <div style="text-align:center; margin-top: 2rem; padding-bottom: 4rem;">
+            <p style="color:var(--text-muted); font-size:0.9rem;">Remember: seeking help is an act of courage, not weakness.</p>
+            <a href="{{ url_for('resources') }}" class="btn-primary" style="margin-top: 1rem; display: inline-block; width: auto; padding: 0.8rem 2rem;">
+                View All Wellness Resources →
+            </a>
+        </div>
+
+    </main>
+
+    <script>
+        // Box breathing animation
+        const phases = [
+            { label: "Inhale",  duration: 4, scale: 1.3 },
+            { label: "Hold",    duration: 4, scale: 1.3 },
+            { label: "Exhale",  duration: 4, scale: 1.0 },
+            { label: "Hold",    duration: 4, scale: 1.0 },
+        ];
+        let phaseIdx = 0, countdown = 0, interval = null;
+        const box = document.getElementById('breath-box');
+        const inner = document.getElementById('breath-inner');
+        const textEl = document.getElementById('breath-text');
+        const countEl = document.getElementById('breath-count');
+
+        function startBreathing() {
+            document.getElementById('breath-btn').textContent = 'Stop';
+            document.getElementById('breath-btn').onclick = stopBreathing;
+            phaseIdx = 0; countdown = phases[0].duration;
+            runPhase();
+            interval = setInterval(tick, 1000);
+        }
+        function stopBreathing() {
+            clearInterval(interval); interval = null;
+            textEl.textContent = 'Inhale';
+            countEl.textContent = '4';
+            inner.style.transform = 'scale(1)';
+            document.getElementById('breath-btn').textContent = 'Start';
+            document.getElementById('breath-btn').onclick = startBreathing;
+        }
+        function runPhase() {
+            const p = phases[phaseIdx];
+            textEl.textContent = p.label;
+            countEl.textContent = p.duration;
+            inner.style.transform = `scale(${p.scale})`;
+        }
+        function tick() {
+            countdown--;
+            countEl.textContent = countdown;
+            if (countdown <= 0) {
+                phaseIdx = (phaseIdx + 1) % phases.length;
+                countdown = phases[phaseIdx].duration;
+                runPhase();
+            }
+        }
+    </script>
+</body>
+</html>
