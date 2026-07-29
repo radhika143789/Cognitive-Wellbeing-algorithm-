@@ -39,12 +39,12 @@
         <header class="hero" style="padding-top: 5rem;">
             <h1>Mental Fitness <span class="highlight">Assessment</span></h1>
             <p>Answer honestly. Our AI uses your responses to calculate a personalized mental fitness score.<br>
-               <small style="color:var(--text-muted);">All responses are private and never shared.</small>
+               <small style="color:var(--text-muted);">All responses are private and never shared. Use keyboard arrows to navigate.</small>
             </p>
         </header>
 
         <!-- Progress bar -->
-        <div class="progress-wrap glass">
+        <div class="progress-wrap">
             <div class="progress-bar-track">
                 <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
             </div>
@@ -55,7 +55,8 @@
 
             <!-- Step cards — one per question -->
             {% for q in questions %}
-            <div class="question-card glass {% if loop.index > 1 %}q-hidden{% endif %}" id="q-{{ loop.index }}" data-index="{{ loop.index }}">
+            <div class="question-card {% if loop.index > 1 %}q-hidden{% endif %}" id="q-{{ loop.index }}"
+                 data-index="{{ loop.index }}" data-group="{{ q.group }}">
                 <div class="q-group-badge">
                     {% if q.group == 'schizophrenia' %}🔮 Thought Patterns
                     {% elif q.group == 'bipolar' %}⚡ Mood Swings
@@ -78,6 +79,12 @@
                     </label>
                     {% endfor %}
                 </div>
+                <div class="keyboard-hint">
+                    <span class="kbd">↑</span><span class="kbd">↓</span> select &nbsp;·&nbsp;
+                    <span class="kbd">→</span> next &nbsp;·&nbsp;
+                    <span class="kbd">←</span> back &nbsp;·&nbsp;
+                    <span class="kbd">1</span>–<span class="kbd">{{ q.options|length }}</span> quick pick
+                </div>
             </div>
             {% endfor %}
 
@@ -90,6 +97,31 @@
                 </button>
             </div>
         </form>
+
+        <!-- Key Shortcuts Help Button -->
+        <button class="key-help-btn" id="key-help-btn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">⌨️</button>
+        <div class="key-help-panel" id="key-help-panel">
+            <h4>⌨ Keyboard Shortcuts</h4>
+            <div class="key-row"><span class="kbd">→</span> / <span class="kbd">Enter</span> <span>Next question</span></div>
+            <div class="key-row"><span class="kbd">←</span> <span>Previous question</span></div>
+            <div class="key-row"><span class="kbd">↑</span> / <span class="kbd">↓</span> <span>Select option</span></div>
+            <div class="key-row"><span class="kbd">1</span>–<span class="kbd">9</span> <span>Quick-pick option</span></div>
+            <div class="key-row"><span class="kbd">?</span> <span>Toggle this panel</span></div>
+        </div>
+
+        <!-- Celebration overlay (shown before submit) -->
+        <div class="celebration-overlay" id="celebration-overlay">
+            <div class="confetti-container" id="confetti-container"></div>
+            <div class="celebration-modal">
+                <span class="celebration-emoji">🎉</span>
+                <div class="celebration-title">All Done!</div>
+                <p class="celebration-subtitle">
+                    You've answered all {{ questions|length }} questions.<br>
+                    Ready to see your personalized mental fitness score?
+                </p>
+                <button class="celebration-btn" id="celebration-submit-btn">✨ Reveal My Score →</button>
+            </div>
+        </div>
 
         {% else %}
         <!-- ── RESULT PANEL ── -->
@@ -178,11 +210,11 @@
             {% endif %}
 
             <div class="result-actions">
-                <a href="{{ url_for('assess') }}" class="btn-outline">Retake Assessment</a>
+                <a href="{{ url_for('assess') }}" class="btn-outline">↺ Retake Assessment</a>
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('dashboard') }}" class="btn-primary">View My Dashboard →</a>
                 {% else %}
-                    <a href="{{ url_for('register') }}" class="btn-primary">Save & Track Progress →</a>
+                    <a href="{{ url_for('register') }}" class="btn-primary">Save &amp; Track Progress →</a>
                 {% endif %}
             </div>
         </div>
@@ -191,13 +223,27 @@
     </main>
 
     <script>
-        // Jinja2 enumerate workaround already handled by template filter
-        // ─── Multi-step wizard ───
-        const total = {{ questions|length }};
+        // ─── Jinja total count ───
+        const total = {{ questions|length if result is none else 0 }};
         let current = 1;
+        let direction = 1; // 1=forward, -1=backward
+
+        // ─── Keyboard shortcut panel ───
+        const keyHelpBtn   = document.getElementById('key-help-btn');
+        const keyHelpPanel = document.getElementById('key-help-panel');
+        if (keyHelpBtn) {
+            keyHelpBtn.addEventListener('click', () => {
+                keyHelpPanel.classList.toggle('visible');
+            });
+            document.addEventListener('click', e => {
+                if (!keyHelpBtn.contains(e.target) && !keyHelpPanel.contains(e.target))
+                    keyHelpPanel.classList.remove('visible');
+            });
+        }
 
         function updateUI() {
-            document.getElementById('progress-fill').style.width = ((current / total) * 100) + '%';
+            const pct = ((current / total) * 100);
+            document.getElementById('progress-fill').style.width = pct + '%';
             document.getElementById('progress-label').textContent = `Question ${current} of ${total}`;
             document.getElementById('btn-prev').style.display = current > 1 ? 'inline-flex' : 'none';
             document.getElementById('btn-next').style.display = current < total ? 'inline-flex' : 'none';
@@ -205,25 +251,153 @@
         }
 
         function changeStep(dir) {
+            direction = dir;
             const card = document.getElementById(`q-${current}`);
-            // Validate current step has a selection
+
             if (dir === 1) {
+                const name = card.querySelector('input[type=radio]').name;
+                if (!document.querySelector(`input[name="${name}"]:checked`)) {
+                    card.classList.add('shake');
+                    setTimeout(() => card.classList.remove('shake'), 500);
+                    // Vibrate on mobile
+                    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+                    return;
+                }
+            }
+
+            // Animate out
+            card.classList.add('q-hidden');
+            current = Math.max(1, Math.min(total, current + dir));
+            const next = document.getElementById(`q-${current}`);
+            next.classList.remove('q-hidden');
+            // Direction-aware slide
+            next.classList.remove('slide-in-right', 'slide-in-left');
+            void next.offsetWidth; // reflow
+            next.classList.add(dir === 1 ? 'slide-in-right' : 'slide-in-left');
+
+            next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            updateUI();
+
+            // If last question answered + next pressed, show celebration first
+            if (dir === 1 && current === total) {
+                // Wait briefly before showing submit
+            }
+        }
+
+        // ─── Celebration popup ───
+        function launchConfetti() {
+            const container = document.getElementById('confetti-container');
+            const colors = ['#818cf8','#c084fc','#38bdf8','#34d399','#f59e0b','#f87171','#06b6d4'];
+            for (let i = 0; i < 80; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.cssText = `
+                    left: ${Math.random() * 100}%;
+                    background: ${color};
+                    width: ${6 + Math.random() * 10}px;
+                    height: ${6 + Math.random() * 10}px;
+                    border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+                    animation-duration: ${1.5 + Math.random() * 2.5}s;
+                    animation-delay: ${Math.random() * 0.8}s;
+                `;
+                container.appendChild(piece);
+                piece.addEventListener('animationend', () => piece.remove());
+            }
+        }
+
+        const btnSubmit = document.getElementById('btn-submit');
+        const overlay   = document.getElementById('celebration-overlay');
+        const celebBtn  = document.getElementById('celebration-submit-btn');
+        const form      = document.getElementById('assess-form');
+
+        if (btnSubmit && overlay) {
+            // Override default submit to show celebration first
+            btnSubmit.addEventListener('click', (e) => {
+                e.preventDefault();
+                const card = document.getElementById(`q-${current}`);
                 const name = card.querySelector('input[type=radio]').name;
                 if (!document.querySelector(`input[name="${name}"]:checked`)) {
                     card.classList.add('shake');
                     setTimeout(() => card.classList.remove('shake'), 500);
                     return;
                 }
-            }
-            card.classList.add('q-hidden');
-            current = Math.max(1, Math.min(total, current + dir));
-            const next = document.getElementById(`q-${current}`);
-            next.classList.remove('q-hidden');
-            next.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            updateUI();
+                // Show celebration
+                overlay.classList.add('visible');
+                launchConfetti();
+            });
         }
 
-        updateUI();
+        if (celebBtn && form) {
+            celebBtn.addEventListener('click', () => {
+                form.submit();
+            });
+        }
+
+        // Close overlay on background click
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.classList.remove('visible');
+            });
+        }
+
+        // ─── Keyboard Navigation ───
+        if (total > 0) {
+            document.addEventListener('keydown', (e) => {
+                const card = document.getElementById(`q-${current}`);
+                if (!card) return;
+
+                const radios   = [...card.querySelectorAll('input[type=radio]')];
+                const checked  = radios.findIndex(r => r.checked);
+                const panelVisible = keyHelpPanel && keyHelpPanel.classList.contains('visible');
+
+                switch (e.key) {
+                    case 'ArrowRight':
+                    case 'Enter':
+                        if (e.target.tagName === 'INPUT') return;
+                        if (current < total) changeStep(1);
+                        else btnSubmit && btnSubmit.click();
+                        break;
+
+                    case 'ArrowLeft':
+                        if (current > 1) changeStep(-1);
+                        break;
+
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (checked < radios.length - 1) {
+                            radios[checked + 1].checked = true;
+                            radios[checked + 1].dispatchEvent(new Event('change'));
+                        } else if (checked === -1 && radios.length > 0) {
+                            radios[0].checked = true;
+                        }
+                        break;
+
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (checked > 0) {
+                            radios[checked - 1].checked = true;
+                            radios[checked - 1].dispatchEvent(new Event('change'));
+                        }
+                        break;
+
+                    case '?':
+                        if (keyHelpPanel) keyHelpPanel.classList.toggle('visible');
+                        break;
+
+                    default:
+                        // Number keys 1–9 for quick pick
+                        const num = parseInt(e.key);
+                        if (!isNaN(num) && num >= 1 && num <= radios.length) {
+                            radios[num - 1].checked = true;
+                            radios[num - 1].dispatchEvent(new Event('change'));
+                        }
+                        break;
+                }
+            });
+        }
+
+        if (total > 0) updateUI();
     </script>
 </body>
 </html>
