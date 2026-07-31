@@ -42,6 +42,7 @@
         <!-- Journal Write Area -->
         <div class="card glass journal-write-card">
             <form id="journal-form" method="POST" action="{{ url_for('journal') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="journal-header">
                     <span class="journal-date" id="journal-date"></span>
                     <span class="char-counter"><span id="char-count">0</span> / 2000</span>

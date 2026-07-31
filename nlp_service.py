@@ -13,7 +13,7 @@ def analyze_sentiment(text: str) -> dict:
           - pos, neg, neu: component scores (0.0 to 1.0)
           - emoji: a relevant emoji for display
     """
-    scores = _analyzer.polarity_scores(text)
+    scores = _analyzer.polarity_scores(text[:2000])  # guard: truncate to prevent DoS on huge inputs
     compound = scores['compound']
 
     if compound >= 0.05:

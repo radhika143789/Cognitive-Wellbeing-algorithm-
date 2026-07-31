@@ -132,13 +132,24 @@ def get_recommendations(score: float, features: dict) -> dict:
         },
     ]
 
-    # Always include first 3, plus any that match triggered disorders
-    triggered_lower = [t.lower().replace("_disorders", "").replace("_", "") for t in triggered]
+    # Build a tag set from triggered disorders for clean set-intersection matching
+    triggered_tags = set()
+    for t in triggered:
+        # e.g. "Anxiety_disorders" → "anxiety", "Drug_use_disorders" → "drug use"
+        base = t.lower().replace("_disorders", "").replace("_", " ").strip()
+        triggered_tags.add(base)
+        # Also add individual words so "drug use" matches tag "drug"
+        triggered_tags.update(base.split())
+
     grounding = []
+    seen = set()
     for g in grounding_all:
-        if len(grounding) < 3 or any(tag in " ".join(triggered_lower) for tag in g["tags"]):
-            if g not in grounding:
-                grounding.append(g)
+        if g['name'] in seen:
+            continue
+        tag_match = bool(triggered_tags.intersection(g["tags"]))
+        if len(grounding) < 3 or tag_match:
+            grounding.append(g)
+            seen.add(g['name'])
 
     # ── CBT Journal Prompts ──
     cbt_base = [

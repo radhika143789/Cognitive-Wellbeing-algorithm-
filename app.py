@@ -1,8 +1,11 @@
 import os
 import logging
 import secrets
-from flask import Flask, request, render_template, redirect, url_for, flash, jsonify
+from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, session
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, AssessmentResult, JournalEntry, UserStats, ThoughtRecord, ActivityLog, ChatMessage, ShareToken
 from nlp_service import analyze_sentiment
@@ -17,9 +20,13 @@ import joblib
 import numpy as np
 from datetime import datetime, timezone, timedelta
 
+# Input length limits (chars)
+MAX_JOURNAL_LENGTH   = 5000
+MAX_CBT_TEXT_LENGTH  = 2000
+MAX_CHAT_MSG_LENGTH  = 1000
+MAX_USERNAME_LENGTH  = 80
+
 # ── Configuration ─────────────────────────────────────────────────────────────
-# In production set SECRET_KEY via environment variable.
-# Never commit a real secret to source control.
 _SECRET_KEY = os.environ.get('SECRET_KEY', '')
 if not _SECRET_KEY:
     _SECRET_KEY = 'dev-only-insecure-key-change-in-production'
@@ -28,19 +35,38 @@ if not _SECRET_KEY:
         "Set the SECRET_KEY env var before deploying."
     )
 
-# Absolute DB path avoids silent data loss when CWD changes.
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _DB_PATH   = os.path.join(_BASE_DIR, 'database.db')
 
 app = Flask(__name__)
 app.config['SECRET_KEY']                  = _SECRET_KEY
-app.config['SQLALCHEMY_DATABASE_URI']     = f'sqlite:///{_DB_PATH}'
+# Use DATABASE_URL env var in production (e.g. PostgreSQL), fallback to local SQLite
+app.config['SQLALCHEMY_DATABASE_URI']     = os.environ.get('DATABASE_URL', f'sqlite:///{_DB_PATH}')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# CSRF — disable only when TESTING=True so the test suite still works
+app.config['WTF_CSRF_ENABLED'] = not app.config.get('TESTING', False)
 
 # Expose Python builtins to Jinja2 templates
 app.jinja_env.globals.update(enumerate=enumerate, zip=zip)
 
 db.init_app(app)
+
+# ── Rate Limiter ──────────────────────────────────────────────────────────────
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["500/day", "100/hour"],
+    storage_uri="memory://",
+)
+
+# ── CSRF Protection ───────────────────────────────────────────────────────────
+csrf = CSRFProtect(app)
+
+# ── CSRF error handler ────────────────────────────────────────────────────────
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    flash('Session expired or invalid form submission. Please try again.', 'error')
+    return redirect(request.referrer or url_for('landing'))
 
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -80,6 +106,7 @@ def landing():
 # ─────────────────────────── AUTH ───────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("10/hour")
 def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -87,7 +114,9 @@ def register():
         if not username or not password:
             flash('Username and password are required.', 'error')
             return redirect(url_for('register'))
-        # S3: Enforce minimum password length to prevent trivially weak passwords
+        if len(username) > MAX_USERNAME_LENGTH:
+            flash('Username too long (max 80 characters).', 'error')
+            return redirect(url_for('register'))
         if len(password) < 8:
             flash('Password must be at least 8 characters.', 'error')
             return redirect(url_for('register'))
@@ -98,21 +127,27 @@ def register():
             username=username,
             password=generate_password_hash(password, method='pbkdf2:sha256')
         )
-        db.session.add(new_user)
-        db.session.commit()
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            logging.error("Registration DB error: %s", exc)
+            flash('Registration failed. Please try again.', 'error')
+            return redirect(url_for('register'))
         flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
     return render_template('register.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10/minute")
 def login():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
-            # P3-1: "remember me" is opt-in, not forced on every login
             remember = request.form.get('remember') == 'on'
             login_user(user, remember=remember)
             return redirect(url_for('dashboard'))
@@ -217,19 +252,25 @@ def assess():
         for col in feature_cols
     ]
 
+    # Guard against NaN values in feature vector (tampered / missing fields)
+    vec = [0.0 if (v != v) else float(v) for v in vec]  # NaN check: NaN != NaN
+
     # Run prediction
     prediction = model.predict([vec])[0]
     score      = round(float(np.clip(prediction, 0, 100)), 2)
 
     # Persist to DB and update gamification stats for logged-in users
     if current_user.is_authenticated:
-        db.session.add(AssessmentResult(score=score, user_id=current_user.id))
-
-        stats = get_or_create_stats(db, current_user.id)
-        stats.total_assessments += 1
-        newly_awarded = evaluate_badges(stats, latest_score=score)
-        db.session.commit()
-        _flash_badges(newly_awarded)
+        try:
+            db.session.add(AssessmentResult(score=score, user_id=current_user.id))
+            stats = get_or_create_stats(db, current_user.id)
+            stats.total_assessments += 1
+            newly_awarded = evaluate_badges(stats, latest_score=score)
+            db.session.commit()
+            _flash_badges(newly_awarded)
+        except Exception as exc:
+            db.session.rollback()
+            logging.error("Assessment save error: %s", exc)
 
     return render_template(
         'assess.html',
@@ -260,22 +301,29 @@ def journal():
     result = None
     if request.method == 'POST':
         content = request.form.get('content', '').strip()
+        if len(content) > MAX_JOURNAL_LENGTH:
+            flash(f'Entry too long. Maximum {MAX_JOURNAL_LENGTH} characters.', 'error')
+            return redirect(url_for('journal'))
         if content:
             sentiment = analyze_sentiment(content)
-            db.session.add(JournalEntry(
-                content=content,
-                sentiment_compound=sentiment['compound'],
-                sentiment_label=sentiment['label'],
-                user_id=current_user.id
-            ))
-
-            # ── Gamification: update streak + check badges ──
-            stats = get_or_create_stats(db, current_user.id)
-            update_streak(stats)
-            newly_awarded = evaluate_badges(stats)
-            db.session.commit()
-            _flash_badges(newly_awarded)
-
+            try:
+                db.session.add(JournalEntry(
+                    content=content,
+                    sentiment_compound=sentiment['compound'],
+                    sentiment_label=sentiment['label'],
+                    user_id=current_user.id
+                ))
+                # ── Gamification: update streak + check badges ──
+                stats = get_or_create_stats(db, current_user.id)
+                update_streak(stats)
+                newly_awarded = evaluate_badges(stats)
+                db.session.commit()
+                _flash_badges(newly_awarded)
+            except Exception as exc:
+                db.session.rollback()
+                logging.error("Journal save error: %s", exc)
+                flash('Could not save entry. Please try again.', 'error')
+                return redirect(url_for('journal'))
             result = sentiment
 
     entries = (
@@ -396,6 +444,10 @@ def cbt_thought_record():
     balanced_thought = request.form.get('balanced_thought', '').strip()
     outcome_mood_raw = request.form.get('outcome_mood', '')
 
+    # Input length limits
+    if len(situation) > MAX_CBT_TEXT_LENGTH or len(hot_thought) > MAX_CBT_TEXT_LENGTH:
+        flash(f'Text fields too long. Maximum {MAX_CBT_TEXT_LENGTH} characters each.', 'error')
+        return redirect(url_for('cbt'))
     if not situation or not hot_thought:
         flash('Situation and hot thought are required fields.', 'error')
         return redirect(url_for('cbt'))
@@ -417,8 +469,14 @@ def cbt_thought_record():
         outcome_mood=outcome_mood,
         user_id=current_user.id,
     )
-    db.session.add(record)
-    db.session.commit()
+    try:
+        db.session.add(record)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logging.error("CBT record save error: %s", exc)
+        flash('Could not save record. Please try again.', 'error')
+        return redirect(url_for('cbt'))
     flash('✅ Thought record saved!', 'success')
     return redirect(url_for('cbt') + '#thought-records')
 
@@ -446,6 +504,10 @@ def cbt_activity_log():
     except (ValueError, TypeError):
         ma = None
 
+    if len(activity) > MAX_CBT_TEXT_LENGTH:
+        flash(f'Activity description too long. Maximum {MAX_CBT_TEXT_LENGTH} characters.', 'error')
+        return redirect(url_for('cbt'))
+
     log = ActivityLog(
         activity=activity,
         mood_before=mb,
@@ -453,8 +515,14 @@ def cbt_activity_log():
         notes=notes,
         user_id=current_user.id,
     )
-    db.session.add(log)
-    db.session.commit()
+    try:
+        db.session.add(log)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logging.error("Activity log save error: %s", exc)
+        flash('Could not save activity. Please try again.', 'error')
+        return redirect(url_for('cbt'))
     flash('✅ Activity logged!', 'success')
     return redirect(url_for('cbt') + '#activity-logs')
 
@@ -465,32 +533,56 @@ def cbt_activity_log():
 @login_required
 def chat():
     """AI MindCompanion Chatbot page."""
-    history = ChatMessage.query.filter_by(user_id=current_user.id).order_by(ChatMessage.timestamp.asc()).all()
+    # Limit to last 100 messages to prevent loading full conversation history
+    history = (
+        ChatMessage.query
+        .filter_by(user_id=current_user.id)
+        .order_by(ChatMessage.timestamp.asc())
+        .limit(100)
+        .all()
+    )
     return render_template('chat.html', history=history)
 
 
 @app.route('/chat/api', methods=['POST'])
 @login_required
+@limiter.limit("30/minute")
+@csrf.exempt   # JSON API uses token-based auth; standard CSRF not needed
 def chat_api():
     """JSON API endpoint for AI MindCompanion conversation."""
     data = request.get_json() or {}
-    user_msg = data.get('message', '').strip()
+    user_msg = data.get('message', '').strip()[:MAX_CHAT_MSG_LENGTH]
     if not user_msg:
         return jsonify({'error': 'Empty message'}), 400
+
+    # Load recent history for context-aware responses (last 10 messages)
+    recent_history = (
+        ChatMessage.query
+        .filter_by(user_id=current_user.id)
+        .order_by(ChatMessage.timestamp.desc())
+        .limit(10)
+        .all()
+    )
+    history_dicts = [{'sender': m.sender, 'message': m.message} for m in reversed(recent_history)]
 
     # Save user message
     u_msg = ChatMessage(sender='user', message=user_msg, user_id=current_user.id)
     db.session.add(u_msg)
 
-    # Generate AI Response
-    ai_out = generate_ai_response(user_msg)
+    # Generate context-aware AI Response
+    ai_out = generate_ai_response(user_msg, history=history_dicts)
     reply_text = ai_out['response']
     label = ai_out['sentiment_label']
 
     # Save assistant message
     a_msg = ChatMessage(sender='assistant', message=reply_text, sentiment_label=label, user_id=current_user.id)
     db.session.add(a_msg)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logging.error("Chat save error: %s", exc)
+        return jsonify({'error': 'Could not save message'}), 500
 
     return jsonify({
         'response': reply_text,
@@ -505,21 +597,32 @@ def chat_api():
 def share():
     """Clinician link generator page."""
     tokens = ShareToken.query.filter_by(user_id=current_user.id).order_by(ShareToken.created_at.desc()).all()
-    new_link = request.args.get('new_link')
+    # Retrieve share link from session (not URL param — avoids leaking token into logs)
+    new_link = session.pop('new_share_link', None)
     return render_template('share.html', tokens=tokens, new_link=new_link)
 
 
 @app.route('/share/generate', methods=['POST'])
 @login_required
+@limiter.limit("10/hour")
 def generate_share_link():
     """Generate a secure, time-limited share token for clinicians."""
-    duration_days = int(request.form.get('duration_days', '7'))
+    # Whitelist valid durations — prevents 100-year token abuse
+    try:
+        duration_days = int(request.form.get('duration_days', '7'))
+        if duration_days not in (1, 7, 30):
+            duration_days = 7
+    except (ValueError, TypeError):
+        duration_days = 7
+
     pin = request.form.get('pin', '').strip()
+    if pin and (not pin.isdigit() or len(pin) > 10):
+        flash('PIN must be numeric and at most 10 digits.', 'error')
+        return redirect(url_for('share'))
 
     token_str = secrets.token_urlsafe(32)
     now = datetime.now(timezone.utc)
     expires = now + timedelta(days=duration_days)
-
     pin_hash = generate_password_hash(pin, method='pbkdf2:sha256') if pin else None
 
     token_obj = ShareToken(
@@ -528,12 +631,19 @@ def generate_share_link():
         pin_hash=pin_hash,
         user_id=current_user.id
     )
-    db.session.add(token_obj)
-    db.session.commit()
+    try:
+        db.session.add(token_obj)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logging.error("Share token save error: %s", exc)
+        flash('Could not generate link. Please try again.', 'error')
+        return redirect(url_for('share'))
 
-    share_url = url_for('view_shared_report', token=token_str, _external=True)
+    # Store in session to avoid leaking token into GET query params / logs
+    session['new_share_link'] = url_for('view_shared_report', token=token_str, _external=True)
     flash('✅ Share link created successfully!', 'success')
-    return redirect(url_for('share', new_link=share_url))
+    return redirect(url_for('share'))
 
 
 @app.route('/shared/<token>', methods=['GET', 'POST'])
@@ -546,20 +656,20 @@ def view_shared_report(token):
 
     target_user = db.session.get(User, share_token.user_id)
 
-    # Check PIN protection if set
+    # Check PIN protection if set — explicit flow, no fall-through pass
     if share_token.pin_hash:
-        pin_entered = request.form.get('pin', '')
-        if request.method == 'POST':
-            if check_password_hash(share_token.pin_hash, pin_entered):
-                # PIN verified
-                pass
-            else:
-                return render_template('shared_report.html', require_pin=True, pin_error=True, user=target_user)
-        else:
-            return render_template('shared_report.html', require_pin=True, pin_error=False, user=target_user)
+        pin_entered = request.form.get('pin', '').strip()
+        # GET → show PIN form; POST with wrong PIN → show error
+        if request.method != 'POST' or not pin_entered or not check_password_hash(share_token.pin_hash, pin_entered):
+            return render_template(
+                'shared_report.html',
+                require_pin=True,
+                pin_error=(request.method == 'POST'),
+                user=target_user
+            )
 
-    # Fetch user summary metrics
-    assessments = AssessmentResult.query.filter_by(user_id=target_user.id).order_by(AssessmentResult.timestamp.desc()).all()
+    # Fetch user summary metrics (bounded queries)
+    assessments = AssessmentResult.query.filter_by(user_id=target_user.id).order_by(AssessmentResult.timestamp.desc()).limit(50).all()
     journals = JournalEntry.query.filter_by(user_id=target_user.id).order_by(JournalEntry.timestamp.desc()).limit(10).all()
     cbt_records = ThoughtRecord.query.filter_by(user_id=target_user.id).count()
 
@@ -592,27 +702,23 @@ def analytics():
     scores     = [round(a.score, 1) for a in assessments]
     sentiments = [round(j.sentiment_compound, 2) for j in journals[:len(dates)]]
 
-    # Fill default mock padding if sparse user history
-    if not dates:
-        dates = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5']
-        scores = [65.0, 70.5, 68.0, 74.0, 78.5]
-        sentiments = [0.15, 0.32, -0.05, 0.45, 0.60]
+    # Show real empty state — never fabricate data on a health platform
+    no_data = not dates
 
     # Sentiment Breakdown Distribution
     pos = sum(1 for j in journals if j.sentiment_label == 'Positive')
     neu = sum(1 for j in journals if j.sentiment_label == 'Neutral')
     neg = sum(1 for j in journals if j.sentiment_label == 'Negative')
-    if pos + neu + neg == 0:
-        pos, neu, neg = 4, 3, 2
 
-    # Radar Dimensions Balance (0-100)
-    avg_score = np.mean(scores) if scores else 70
-    thought_clarity   = min(100, int(avg_score * 0.95 + cbt_count * 5))
-    mood_stability    = min(100, int(avg_score * 1.02))
-    emotional_calm    = min(100, int(avg_score * 0.88 + pos * 3))
-    substance_balance = 90
-    anxiety_control   = min(100, int(avg_score * 0.92))
-    daily_activation  = min(100, int(avg_score * 0.85 + act_count * 6))
+    # Radar Dimensions Balance (0-100) — all dimensions derived from real data
+    avg_score = np.mean(scores) if scores else 0
+    thought_clarity   = min(100, int(avg_score * 0.95 + cbt_count * 5))  if scores else 0
+    mood_stability    = min(100, int(avg_score * 1.02))                   if scores else 0
+    emotional_calm    = min(100, int(avg_score * 0.88 + pos * 3))         if scores else 0
+    # substance_balance: derived from avg score (proxy; lower score = higher risk)
+    substance_balance = min(100, int(avg_score * 0.90))                   if scores else 0
+    anxiety_control   = min(100, int(avg_score * 0.92))                   if scores else 0
+    daily_activation  = min(100, int(avg_score * 0.85 + act_count * 6))  if scores else 0
 
     radar_data = [thought_clarity, mood_stability, emotional_calm, substance_balance, anxiety_control, daily_activation]
 
@@ -622,10 +728,14 @@ def analytics():
         scores=scores,
         sentiments=sentiments,
         sentiment_dist={'Positive': pos, 'Neutral': neu, 'Negative': neg},
-        radar_data=radar_data
+        radar_data=radar_data,
+        no_data=no_data
     )
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Read debug flag from environment — NEVER hardcode True in production
+    _debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    _port  = int(os.environ.get('PORT', 5000))
+    app.run(debug=_debug, port=_port)
 

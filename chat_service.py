@@ -17,6 +17,9 @@ CRISIS_KEYWORDS = [
     r'\bhurt myself\b', r'\bhopeless\b'
 ]
 
+# Maximum accepted message length (chars) — prevents DoS via large inputs
+MAX_MESSAGE_LENGTH = 1000
+
 # Quick response options based on conversation state
 DEFAULT_QUICK_RESPONSES = [
     "Tell me more about how you're feeling",
@@ -57,19 +60,29 @@ SADNESS_RESPONSES = [
 ]
 
 
-def generate_ai_response(user_message: str, history=None) -> dict:
+def generate_ai_response(user_message: str, history: list | None = None) -> dict:
     """
     Generates an empathetic, CBT-focused response to the user's message.
-    
-    Returns:
-        dict: {
-            'response': str,
-            'sentiment_label': str,
-            'is_crisis': bool,
-            'quick_replies': list of str
-        }
+
+    Parameters
+    ----------
+    user_message : str
+        The user's input text.
+    history : list[dict] | None
+        Optional list of previous {'sender', 'message'} dicts for context-aware
+        responses. Used to detect repeated distress signals across turns.
+
+    Returns
+    -------
+    dict with keys:
+        'response'        : str  — the AI reply text
+        'sentiment_label' : str  — 'Positive', 'Neutral', or 'Negative'
+        'is_crisis'       : bool — True if crisis keywords detected
+        'quick_replies'   : list[str]
     """
-    clean_msg = user_message.strip()
+    # Truncate input to guard against oversized payloads
+    clean_msg = user_message.strip()[:MAX_MESSAGE_LENGTH]
+
     if not clean_msg:
         return {
             'response': "I didn't catch that. How are you feeling right now?",
@@ -78,7 +91,7 @@ def generate_ai_response(user_message: str, history=None) -> dict:
             'quick_replies': DEFAULT_QUICK_RESPONSES
         }
 
-    # 1. Safety check for crisis keywords
+    # 1. Safety check for crisis keywords (before any other processing)
     for pattern in CRISIS_KEYWORDS:
         if re.search(pattern, clean_msg, re.IGNORECASE):
             return {
@@ -97,38 +110,55 @@ def generate_ai_response(user_message: str, history=None) -> dict:
 
     # 2. NLP Sentiment Analysis
     sentiment = analyze_sentiment(clean_msg)
-    label = sentiment['label']
-    compound = sentiment['compound']
+    label     = sentiment['label']
+    compound  = sentiment['compound']  # -1.0 to +1.0
 
-    # 3. Keyword / Intent Matching
+    # 3. Context-awareness: check if user has expressed distress in recent history
+    recent_negative = False
+    if history:
+        recent_msgs = [h['message'] for h in history[-4:] if h.get('sender') == 'user']
+        recent_negative = any(
+            re.search(p, m, re.IGNORECASE)
+            for m in recent_msgs
+            for p in [r'\bsad\b', r'\bdepressed\b', r'\banxious\b', r'\bworried\b']
+        )
+
+    # 4. Keyword / Intent Matching (priority ordered)
     msg_lower = clean_msg.lower()
 
     if any(k in msg_lower for k in ['breath', 'breathing', 'anxious', 'panic', 'stress', 'overwhelmed']):
-        reply = random.choice(ANXIETY_RESPONSES) + " " + random.choice(CBT_REFRAMING_PROMPTS)
+        reply   = random.choice(ANXIETY_RESPONSES) + " " + random.choice(CBT_REFRAMING_PROMPTS)
         replies = ["Start 4-7-8 Breathing", "Try Box Breathing", "Write a Thought Record"]
+
     elif any(k in msg_lower for k in ['sad', 'depressed', 'lonely', 'unhappy', 'tired', 'crying']):
-        reply = random.choice(SADNESS_RESPONSES) + " " + random.choice(CBT_REFRAMING_PROMPTS)
+        reply   = random.choice(SADNESS_RESPONSES) + " " + random.choice(CBT_REFRAMING_PROMPTS)
         replies = ["Write in Journal", "CBT Behavioural Planner", "Take Assessment"]
+
     elif any(k in msg_lower for k in ['cbt', 'thought', 'reframe', 'cognitive', 'worksheet']):
         reply = (
             "Cognitive Behavioral Therapy (CBT) helps us identify and reframe unhelpful thoughts. "
             "Our [CBT Worksheets Hub](/cbt) features a 7-column Thought Record and a Behavioural Activation Planner!"
         )
         replies = ["Open CBT Worksheets", "How do I reframe a thought?", "Take Assessment"]
+
     elif any(k in msg_lower for k in ['score', 'fitness', 'assessment', 'predict']):
         reply = (
             "Your Mental Fitness Score (0-100) combines your clinical questionnaire responses and recent journal sentiment. "
             "You can complete a quick 3-minute assessment at any time on our [Assessment Page](/assess)!"
         )
         replies = ["Take Assessment", "View My Dashboard", "Write in Journal"]
-    elif label == 'Positive':
-        reply = random.choice(POSITIVE_RESPONSES)
+
+    elif label == 'Positive' and not recent_negative:
+        reply   = random.choice(POSITIVE_RESPONSES)
         replies = ["Write in Journal", "Check Achievements", "Take Assessment"]
-    elif label == 'Negative':
-        reply = random.choice(SADNESS_RESPONSES)
+
+    elif label == 'Negative' or compound < -0.2 or recent_negative:
+        # Use compound threshold for more nuanced detection
+        reply   = random.choice(SADNESS_RESPONSES)
         replies = ["Try 4-7-8 Breathing", "Write a Thought Record", "Talk to MindCompanion"]
+
     else:
-        reply = random.choice(NEUTRAL_RESPONSES)
+        reply   = random.choice(NEUTRAL_RESPONSES)
         replies = DEFAULT_QUICK_RESPONSES
 
     return {

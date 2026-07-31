@@ -76,6 +76,7 @@
                 </div>
 
                 <form method="POST" action="{{ url_for('cbt_thought_record') }}" class="cbt-form" id="thought-record-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                     <div class="form-row two-col">
                         <div class="form-group">
@@ -174,6 +175,7 @@
                 </div>
 
                 <form method="POST" action="{{ url_for('cbt_activity_log') }}" class="cbt-form" id="activity-log-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                     <div class="form-group">
                         <label for="activity" class="form-label required">

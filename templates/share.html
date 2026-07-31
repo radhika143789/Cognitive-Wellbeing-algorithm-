@@ -93,6 +93,7 @@
             </p>
 
             <form method="POST" action="{{ url_for('generate_share_link') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="input-grid">
                     <div class="input-group">
                         <label for="duration_days">Link Expiration</label>

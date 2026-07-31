@@ -29,6 +29,7 @@
             <h2>🔒 Protected Report</h2>
             <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1.5rem">This clinician summary is protected by a security PIN.</p>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="input-group" style="margin-bottom:1rem">
                     <label for="pin">Enter Access PIN</label>
                     <input type="password" name="pin" id="pin" placeholder="Enter PIN" required>

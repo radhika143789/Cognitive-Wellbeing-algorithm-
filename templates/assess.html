@@ -52,6 +52,7 @@
         </div>
 
         <form id="assess-form" method="POST" action="{{ url_for('assess') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
             <!-- Step cards — one per question -->
             {% for q in questions %}

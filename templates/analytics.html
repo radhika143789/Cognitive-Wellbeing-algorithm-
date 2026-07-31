@@ -62,6 +62,15 @@
             <p>Gain deeper cognitive insights by correlating score history, journal emotional tone, and active CBT engagement.</p>
         </header>
 
+        {% if no_data %}
+        <div class="glass metric-card" style="text-align: center; margin-top: 2rem; padding: 4rem 2rem;">
+            <h2>No Analytics Data Yet</h2>
+            <p style="color: var(--text-muted); margin-top: 1rem; margin-bottom: 2rem;">
+                Your analytics dashboard will unlock once you complete your first assessment and journal entry.
+            </p>
+            <a href="{{ url_for('assess') }}" class="primary-btn" style="text-decoration: none; display: inline-block;">Take Assessment</a>
+        </div>
+        {% else %}
         <div class="analytics-grid">
             <!-- Sentiment vs Score Dual-Axis Line Chart -->
             <div class="glass metric-card full-row">
@@ -87,9 +96,11 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </main>
 
     <script>
+        {% if not no_data %}
         const dates        = {{ dates | tojson }};
         const scores       = {{ scores | tojson }};
         const sentiments   = {{ sentiments | tojson }};
@@ -190,6 +201,7 @@
                 plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc' } } }
             }
         });
+        {% endif %}
     </script>
 </body>
 </html>
