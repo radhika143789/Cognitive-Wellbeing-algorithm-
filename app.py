@@ -1,9 +1,10 @@
 import os
 import logging
-from flask import Flask, request, render_template, redirect, url_for, flash
+import secrets
+from flask import Flask, request, render_template, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, AssessmentResult, JournalEntry, UserStats, ThoughtRecord, ActivityLog
+from models import db, User, AssessmentResult, JournalEntry, UserStats, ThoughtRecord, ActivityLog, ChatMessage, ShareToken
 from nlp_service import analyze_sentiment
 from questionnaire_extractor import extract_features, QUESTIONS
 from resources import get_recommendations
@@ -11,9 +12,10 @@ from gamification import (
     update_streak, evaluate_badges, get_or_create_stats,
     get_badge_details, BADGE_DEFINITIONS
 )
+from chat_service import generate_ai_response
 import joblib
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 # In production set SECRET_KEY via environment variable.
@@ -457,5 +459,173 @@ def cbt_activity_log():
     return redirect(url_for('cbt') + '#activity-logs')
 
 
+# ─────────────────────────── PHASE 6 ROUTES ───────────────────────────
+
+@app.route('/chat')
+@login_required
+def chat():
+    """AI MindCompanion Chatbot page."""
+    history = ChatMessage.query.filter_by(user_id=current_user.id).order_by(ChatMessage.timestamp.asc()).all()
+    return render_template('chat.html', history=history)
+
+
+@app.route('/chat/api', methods=['POST'])
+@login_required
+def chat_api():
+    """JSON API endpoint for AI MindCompanion conversation."""
+    data = request.get_json() or {}
+    user_msg = data.get('message', '').strip()
+    if not user_msg:
+        return jsonify({'error': 'Empty message'}), 400
+
+    # Save user message
+    u_msg = ChatMessage(sender='user', message=user_msg, user_id=current_user.id)
+    db.session.add(u_msg)
+
+    # Generate AI Response
+    ai_out = generate_ai_response(user_msg)
+    reply_text = ai_out['response']
+    label = ai_out['sentiment_label']
+
+    # Save assistant message
+    a_msg = ChatMessage(sender='assistant', message=reply_text, sentiment_label=label, user_id=current_user.id)
+    db.session.add(a_msg)
+    db.session.commit()
+
+    return jsonify({
+        'response': reply_text,
+        'sentiment_label': label,
+        'is_crisis': ai_out['is_crisis'],
+        'quick_replies': ai_out['quick_replies']
+    })
+
+
+@app.route('/share')
+@login_required
+def share():
+    """Clinician link generator page."""
+    tokens = ShareToken.query.filter_by(user_id=current_user.id).order_by(ShareToken.created_at.desc()).all()
+    new_link = request.args.get('new_link')
+    return render_template('share.html', tokens=tokens, new_link=new_link)
+
+
+@app.route('/share/generate', methods=['POST'])
+@login_required
+def generate_share_link():
+    """Generate a secure, time-limited share token for clinicians."""
+    duration_days = int(request.form.get('duration_days', '7'))
+    pin = request.form.get('pin', '').strip()
+
+    token_str = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(days=duration_days)
+
+    pin_hash = generate_password_hash(pin, method='pbkdf2:sha256') if pin else None
+
+    token_obj = ShareToken(
+        token=token_str,
+        expires_at=expires,
+        pin_hash=pin_hash,
+        user_id=current_user.id
+    )
+    db.session.add(token_obj)
+    db.session.commit()
+
+    share_url = url_for('view_shared_report', token=token_str, _external=True)
+    flash('✅ Share link created successfully!', 'success')
+    return redirect(url_for('share', new_link=share_url))
+
+
+@app.route('/shared/<token>', methods=['GET', 'POST'])
+def view_shared_report(token):
+    """Public read-only report view for doctors/therapists."""
+    share_token = ShareToken.query.filter_by(token=token).first()
+
+    if not share_token or not share_token.is_valid():
+        return render_template('shared_report.html', require_pin=False, expired=True), 404
+
+    target_user = db.session.get(User, share_token.user_id)
+
+    # Check PIN protection if set
+    if share_token.pin_hash:
+        pin_entered = request.form.get('pin', '')
+        if request.method == 'POST':
+            if check_password_hash(share_token.pin_hash, pin_entered):
+                # PIN verified
+                pass
+            else:
+                return render_template('shared_report.html', require_pin=True, pin_error=True, user=target_user)
+        else:
+            return render_template('shared_report.html', require_pin=True, pin_error=False, user=target_user)
+
+    # Fetch user summary metrics
+    assessments = AssessmentResult.query.filter_by(user_id=target_user.id).order_by(AssessmentResult.timestamp.desc()).all()
+    journals = JournalEntry.query.filter_by(user_id=target_user.id).order_by(JournalEntry.timestamp.desc()).limit(10).all()
+    cbt_records = ThoughtRecord.query.filter_by(user_id=target_user.id).count()
+
+    latest_score = assessments[0].score if assessments else None
+
+    return render_template(
+        'shared_report.html',
+        require_pin=False,
+        user=target_user,
+        now=datetime.now(timezone.utc),
+        assessments=assessments,
+        journals=journals,
+        latest_score=latest_score,
+        total_assessments=len(assessments),
+        total_journals=len(journals),
+        total_cbt=cbt_records
+    )
+
+
+@app.route('/analytics')
+@login_required
+def analytics():
+    """Advanced Multi-Metric Analytics page."""
+    assessments = AssessmentResult.query.filter_by(user_id=current_user.id).order_by(AssessmentResult.timestamp.asc()).all()
+    journals    = JournalEntry.query.filter_by(user_id=current_user.id).order_by(JournalEntry.timestamp.asc()).all()
+    cbt_count   = ThoughtRecord.query.filter_by(user_id=current_user.id).count()
+    act_count   = ActivityLog.query.filter_by(user_id=current_user.id).count()
+
+    dates      = [a.timestamp.strftime('%b %d') for a in assessments if a.timestamp]
+    scores     = [round(a.score, 1) for a in assessments]
+    sentiments = [round(j.sentiment_compound, 2) for j in journals[:len(dates)]]
+
+    # Fill default mock padding if sparse user history
+    if not dates:
+        dates = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5']
+        scores = [65.0, 70.5, 68.0, 74.0, 78.5]
+        sentiments = [0.15, 0.32, -0.05, 0.45, 0.60]
+
+    # Sentiment Breakdown Distribution
+    pos = sum(1 for j in journals if j.sentiment_label == 'Positive')
+    neu = sum(1 for j in journals if j.sentiment_label == 'Neutral')
+    neg = sum(1 for j in journals if j.sentiment_label == 'Negative')
+    if pos + neu + neg == 0:
+        pos, neu, neg = 4, 3, 2
+
+    # Radar Dimensions Balance (0-100)
+    avg_score = np.mean(scores) if scores else 70
+    thought_clarity   = min(100, int(avg_score * 0.95 + cbt_count * 5))
+    mood_stability    = min(100, int(avg_score * 1.02))
+    emotional_calm    = min(100, int(avg_score * 0.88 + pos * 3))
+    substance_balance = 90
+    anxiety_control   = min(100, int(avg_score * 0.92))
+    daily_activation  = min(100, int(avg_score * 0.85 + act_count * 6))
+
+    radar_data = [thought_clarity, mood_stability, emotional_calm, substance_balance, anxiety_control, daily_activation]
+
+    return render_template(
+        'analytics.html',
+        dates=dates,
+        scores=scores,
+        sentiments=sentiments,
+        sentiment_dist={'Positive': pos, 'Neutral': neu, 'Negative': neg},
+        radar_data=radar_data
+    )
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+

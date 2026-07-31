@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Analytics — MindTrack</title>
+    <meta name="description" content="Explore multi-metric correlations between your mental fitness score, sentiment trends, and CBT activity over time.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .full-row {
+            grid-column: 1 / -1;
+        }
+        .metric-card {
+            padding: 1.8rem;
+        }
+        .metric-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .chart-box {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+        @media (max-width: 768px) {
+            .analytics-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            <a href="{{ url_for('assess') }}">Assess</a>
+            <a href="{{ url_for('journal') }}">Journal</a>
+            <a href="{{ url_for('cbt') }}">CBT</a>
+            <a href="{{ url_for('chat') }}">AI Companion</a>
+            <a href="{{ url_for('analytics') }}" class="nav-active">Analytics</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <span class="user-greeting">Hi, {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container" style="max-width: 980px; margin-top: 5rem;">
+        <header class="hero">
+            <h1>Advanced Multi-Metric <span class="highlight">Analytics</span></h1>
+            <p>Gain deeper cognitive insights by correlating score history, journal emotional tone, and active CBT engagement.</p>
+        </header>
+
+        <div class="analytics-grid">
+            <!-- Sentiment vs Score Dual-Axis Line Chart -->
+            <div class="glass metric-card full-row">
+                <h3>📈 Fitness Score vs. Journal Sentiment Trend</h3>
+                <div class="chart-box">
+                    <canvas id="dualChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Holistic Wellness Dimension Radar Chart -->
+            <div class="glass metric-card">
+                <h3>🕸️ Cognitive Dimension Balance</h3>
+                <div class="chart-box">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Sentiment Breakdown Doughnut -->
+            <div class="glass metric-card">
+                <h3>🍩 Overall Sentiment Distribution</h3>
+                <div class="chart-box">
+                    <canvas id="doughnutChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const dates        = {{ dates | tojson }};
+        const scores       = {{ scores | tojson }};
+        const sentiments   = {{ sentiments | tojson }};
+        const sentimentDist = {{ sentiment_dist | tojson }};
+        const radarData    = {{ radar_data | tojson }};
+
+        // 1. Dual Axis Chart
+        if (dates.length > 0) {
+            new Chart(document.getElementById('dualChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Fitness Score (0-100)',
+                            data: scores,
+                            borderColor: '#818cf8',
+                            backgroundColor: 'rgba(129, 140, 248, 0.15)',
+                            yAxisID: 'y',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Journal Sentiment (-1 to +1)',
+                            data: sentiments,
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                            yAxisID: 'y1',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear', display: true, position: 'left',
+                            min: 0, max: 100,
+                            grid: { color: 'rgba(255,255,255,0.06)' },
+                            ticks: { color: '#cbd5e1' }
+                        },
+                        y1: {
+                            type: 'linear', display: true, position: 'right',
+                            min: -1, max: 1,
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#6ee7b7' }
+                        },
+                        x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#cbd5e1' } }
+                    },
+                    plugins: { legend: { labels: { color: '#f8fafc' } } }
+                }
+            });
+        }
+
+        // 2. Radar Chart
+        new Chart(document.getElementById('radarChart').getContext('2d'), {
+            type: 'radar',
+            data: {
+                labels: ['Thought Clarity', 'Mood Stability', 'Emotional Calm', 'Substance Balance', 'Anxiety Control', 'Daily Activation'],
+                datasets: [{
+                    label: 'Wellness Balance %',
+                    data: radarData,
+                    backgroundColor: 'rgba(168, 85, 247, 0.25)',
+                    borderColor: '#c084fc',
+                    pointBackgroundColor: '#c084fc'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { color: 'rgba(255,255,255,0.1)' },
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        pointLabels: { color: '#cbd5e1', font: { size: 11 } },
+                        ticks: { backdropColor: 'transparent', color: '#94a3b8' }
+                    }
+                },
+                plugins: { legend: { labels: { color: '#f8fafc' } } }
+            }
+        });
+
+        // 3. Doughnut Chart
+        new Chart(document.getElementById('doughnutChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                datasets: [{
+                    data: [sentimentDist.Positive, sentimentDist.Neutral, sentimentDist.Negative],
+                    backgroundColor: ['#34d399', '#fbbf24', '#f87171'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc' } } }
+            }
+        });
+    </script>
+</body>
+</html>

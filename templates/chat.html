@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI MindCompanion — MindTrack</title>
+    <meta name="description" content="Talk to MindCompanion, your CBT-guided AI mental wellness assistant for real-time reflection and support.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .chat-container {
+            max-width: 860px;
+            margin: 5rem auto 3rem;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 140px);
+            min-height: 550px;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.2rem 1.8rem;
+            background: rgba(15, 20, 50, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px 20px 0 0;
+            backdrop-filter: blur(20px);
+        }
+
+        .chat-title-box {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+        }
+
+        .bot-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .chat-title-box h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            margin-right: 0.4rem;
+        }
+
+        .chat-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.8rem;
+            background: rgba(7, 9, 26, 0.5);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            scroll-behavior: smooth;
+        }
+
+        .msg-row {
+            display: flex;
+            gap: 0.8rem;
+            max-width: 80%;
+            animation: fadeInMsg 0.3s ease both;
+        }
+
+        @keyframes fadeInMsg {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-row.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg-row.assistant {
+            align-self: flex-start;
+        }
+
+        .msg-bubble {
+            padding: 1rem 1.3rem;
+            border-radius: 18px;
+            font-size: 0.95rem;
+            line-height: 1.65;
+            position: relative;
+        }
+
+        .msg-row.assistant .msg-bubble {
+            background: rgba(15, 20, 50, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            border-top-left-radius: 4px;
+        }
+
+        .msg-row.user .msg-bubble {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-top-right-radius: 4px;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .msg-time {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 0.3rem;
+            text-align: right;
+            opacity: 0.7;
+        }
+
+        .quick-replies-bar {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            padding: 0.8rem 1.8rem;
+            background: rgba(15, 20, 50, 0.5);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chip-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-muted);
+            padding: 0.45rem 1rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .chip-btn:hover {
+            background: rgba(99, 102, 241, 0.18);
+            border-color: #6366f1;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .chat-footer {
+            padding: 1rem 1.5rem;
+            background: rgba(15, 20, 50, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0 0 20px 20px;
+            backdrop-filter: blur(20px);
+        }
+
+        .chat-form {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(7, 9, 26, 0.8);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            color: white;
+            padding: 0.85rem 1.2rem;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.25s, box-shadow 0.25s;
+        }
+
+        .chat-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 0.85rem 1.6rem;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0.8rem 1.2rem;
+            background: rgba(15, 20, 50, 0.8);
+            border-radius: 18px;
+            width: fit-content;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #818cf8;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            <a href="{{ url_for('assess') }}">Assess</a>
+            <a href="{{ url_for('journal') }}">Journal</a>
+            <a href="{{ url_for('cbt') }}">CBT</a>
+            <a href="{{ url_for('chat') }}" class="nav-active">AI Companion</a>
+            <a href="{{ url_for('analytics') }}">Analytics</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <span class="user-greeting">Hi, {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+        </div>
+    </nav>
+
+    <main class="chat-container glass">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="chat-title-box">
+                <div class="bot-avatar">🤖</div>
+                <div>
+                    <h2>MindCompanion AI</h2>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">
+                        <span class="status-dot"></span>Online · CBT Guided Reflection
+                    </span>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('cbt') }}" class="chip-btn" style="text-decoration:none">📝 Open CBT Worksheets</a>
+                <a href="{{ url_for('crisis') }}" class="chip-btn" style="text-decoration:none; border-color:rgba(239,68,68,0.4); color:#fca5a5">🆘 Crisis</a>
+            </div>
+        </div>
+
+        <!-- Chat Body -->
+        <div class="chat-body" id="chat-body">
+            {% if not history %}
+            <!-- Welcome message -->
+            <div class="msg-row assistant">
+                <div class="msg-bubble">
+                    👋 <strong>Hi, {{ current_user.username }}! I'm your AI MindCompanion.</strong><br>
+                    I'm here to offer a safe, non-judgmental space for CBT-guided reflection, emotional grounding, or talking through what's on your mind today. How are you feeling right now?
+                </div>
+            </div>
+            {% else %}
+                {% for msg in history %}
+                <div class="msg-row {{ msg.sender }}">
+                    <div class="msg-bubble">
+                        {{ msg.message | safe }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Quick Replies -->
+        <div class="quick-replies-bar" id="quick-replies">
+            <button class="chip-btn" onclick="sendQuickReply('How can I reframe an anxious thought?')">💡 Reframe Anxious Thought</button>
+            <button class="chip-btn" onclick="sendQuickReply('Give me a 4-7-8 breathing exercise')">🌬️ 4-7-8 Breathing</button>
+            <button class="chip-btn" onclick="sendQuickReply('How is my mental fitness calculated?')">📊 How Score Works</button>
+            <button class="chip-btn" onclick="sendQuickReply('I want to talk about my day')">📓 Talk About My Day</button>
+        </div>
+
+        <!-- Footer Form -->
+        <div class="chat-footer">
+            <form class="chat-form" id="chat-form" onsubmit="handleSend(event)">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Type a message or feeling..." autocomplete="off" required>
+                <button type="submit" class="send-btn">
+                    <span>Send</span> ✨
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const chatBody = document.getElementById('chat-body');
+        const chatInput = document.getElementById('chat-input');
+        const quickRepliesBar = document.getElementById('quick-replies');
+
+        function scrollToBottom() {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+        scrollToBottom();
+
+        function appendMessage(sender, htmlText) {
+            const row = document.createElement('div');
+            row.className = `msg-row ${sender}`;
+            row.innerHTML = `<div class="msg-bubble">${htmlText}</div>`;
+            chatBody.appendChild(row);
+            scrollToBottom();
+        }
+
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'typing-indicator';
+            indicator.className = 'msg-row assistant';
+            indicator.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            `;
+            chatBody.appendChild(indicator);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            const el = document.getElementById('typing-indicator');
+            if (el) el.remove();
+        }
+
+        function updateQuickReplies(replies) {
+            if (!replies || replies.length === 0) return;
+            quickRepliesBar.innerHTML = replies.map(r => 
+                `<button class="chip-btn" onclick="sendQuickReply('${r.replace(/'/g, "\\'")} ')">${r}</button>`
+            ).join('');
+        }
+
+        async function handleSend(e) {
+            if (e) e.preventDefault();
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            appendMessage('user', text);
+            chatInput.value = '';
+            showTypingIndicator();
+
+            try {
+                const res = await fetch("{{ url_for('chat_api') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                removeTypingIndicator();
+
+                if (data.response) {
+                    appendMessage('assistant', data.response.replace(/\n/g, '<br>'));
+                    updateQuickReplies(data.quick_replies);
+                } else {
+                    appendMessage('assistant', 'Sorry, I had trouble processing that. Please try again.');
+                }
+            } catch (err) {
+                removeTypingIndicator();
+                appendMessage('assistant', 'Network error. Please check your connection.');
+            }
+        }
+
+        function sendQuickReply(text) {
+            chatInput.value = text;
+            handleSend(null);
+        }
+    </script>
+</body>
+</html>

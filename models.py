@@ -19,6 +19,8 @@ class User(UserMixin, db.Model):
     journal_entries = db.relationship('JournalEntry',    backref='user', lazy=True)
     thought_records = db.relationship('ThoughtRecord',   backref='user', lazy=True)
     activity_logs   = db.relationship('ActivityLog',     backref='user', lazy=True)
+    chat_messages   = db.relationship('ChatMessage',     backref='user', lazy=True)
+    share_tokens    = db.relationship('ShareToken',      backref='user', lazy=True)
     stats           = db.relationship('UserStats', backref='user', uselist=False, lazy=True)
 
 
@@ -95,3 +97,35 @@ class ActivityLog(db.Model):
     notes       = db.Column(db.Text, nullable=True)
     planned_at  = db.Column(db.DateTime(timezone=True), default=_utcnow)
     user_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+
+# ── Phase 6: AI Companion & Clinician Sharing ─────────────────────────────────
+
+class ChatMessage(db.Model):
+    """Stores AI MindCompanion chatbot conversation history."""
+    id              = db.Column(db.Integer, primary_key=True)
+    sender          = db.Column(db.String(10), nullable=False)  # 'user' or 'assistant'
+    message         = db.Column(db.Text, nullable=False)
+    sentiment_label = db.Column(db.String(20), nullable=True, default='Neutral')
+    timestamp       = db.Column(db.DateTime(timezone=True), default=_utcnow)
+    user_id         = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+
+class ShareToken(db.Model):
+    """Secure, time-limited token for sharing clinician summaries."""
+    id         = db.Column(db.Integer, primary_key=True)
+    token      = db.Column(db.String(64), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    pin_hash   = db.Column(db.String(255), nullable=True)  # Optional PIN protection
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def is_valid(self):
+        """Check if token is not expired."""
+        now = _utcnow()
+        # Handle offset-naive vs offset-aware comparison gracefully
+        expires = self.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        return now < expires
+

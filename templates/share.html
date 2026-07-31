@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinician Sharing — MindTrack</title>
+    <meta name="description" content="Generate a secure, time-limited link to share your mental fitness scores and CBT summary with your healthcare provider.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .share-main {
+            max-width: 760px;
+            margin: 5rem auto 4rem;
+        }
+        .share-card {
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        .link-box {
+            background: rgba(7, 9, 26, 0.8);
+            border: 1px dashed #6366f1;
+            padding: 1.2rem;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin: 1.5rem 0;
+            word-break: break-all;
+        }
+        .copy-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .active-tokens-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        .active-tokens-table th, .active-tokens-table td {
+            padding: 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <nav class="navbar glass">
+        <a href="{{ url_for('landing') }}" class="logo">🧠 MindTrack</a>
+        <div class="nav-links">
+            <a href="{{ url_for('assess') }}">Assess</a>
+            <a href="{{ url_for('journal') }}">Journal</a>
+            <a href="{{ url_for('cbt') }}">CBT</a>
+            <a href="{{ url_for('chat') }}">AI Companion</a>
+            <a href="{{ url_for('analytics') }}">Analytics</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <span class="user-greeting">Hi, {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="nav-btn-outline">Logout</a>
+        </div>
+    </nav>
+
+    <main class="share-main">
+        <header class="hero">
+            <h1>Clinician <span class="highlight">Sharing Portal</span></h1>
+            <p>Generate a secure, time-limited link to share your assessment history and CBT progress with your doctor or therapist.</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'error' if category == 'error' else 'success' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="glass share-card">
+            <h2>✨ Generate New Secure Share Link</h2>
+            <p style="color:var(--text-muted); font-size:0.92rem; margin-bottom:1.5rem">
+                Select how long your healthcare provider will be able to access your read-only report.
+            </p>
+
+            <form method="POST" action="{{ url_for('generate_share_link') }}">
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label for="duration_days">Link Expiration</label>
+                        <select name="duration_days" id="duration_days" required>
+                            <option value="1">24 Hours (1 Day)</option>
+                            <option value="7" selected>7 Days</option>
+                            <option value="30">30 Days</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="pin">Optional Access PIN (Numeric)</label>
+                        <input type="password" name="pin" id="pin" placeholder="e.g. 1234 (optional)" maxlength="10">
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Generate Clinician Link →</button>
+            </form>
+
+            {% if new_link %}
+            <div class="link-box">
+                <span id="share-link-text">{{ new_link }}</span>
+                <button class="copy-btn" onclick="copyLink()">📋 Copy Link</button>
+            </div>
+            <p style="font-size:0.85rem; color:#6ee7b7">
+                ✓ Share link generated successfully! Anyone with this link (and PIN if set) can view your summary report until expiration.
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- Active Share Links -->
+        <div class="glass share-card">
+            <h2>🔑 Your Active Share Links</h2>
+            {% if tokens %}
+            <table class="active-tokens-table">
+                <thead>
+                    <tr>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>PIN Protected</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tokens %}
+                    <tr>
+                        <td>{{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else 'N/A' }}</td>
+                        <td>
+                            {% if t.is_valid() %}
+                                <span style="color:#6ee7b7">{{ t.expires_at.strftime('%Y-%m-%d %H:%M') if t.expires_at else 'N/A' }}</span>
+                            {% else %}
+                                <span style="color:#f87171">Expired</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ '🔒 Yes' if t.pin_hash else '🌐 Open' }}</td>
+                        <td>
+                            <a href="{{ url_for('view_shared_report', token=t.token) }}" target="_blank" style="color:#818cf8; text-decoration:none">View Report ↗</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-top:1rem">No active share links. Generate one above!</p>
+            {% endif %}
+        </div>
+    </main>
+
+    <script>
+        function copyLink() {
+            const linkText = document.getElementById('share-link-text').innerText;
+            navigator.clipboard.writeText(linkText);
+            alert("Link copied to clipboard!");
+        }
+    </script>
+</body>
+</html>

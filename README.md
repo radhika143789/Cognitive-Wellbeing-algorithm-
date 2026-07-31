@@ -168,7 +168,11 @@ Mental Fitness Score (0 – 100)
   - Behavioural Activation Planner (activity + mood before/after sliders)
   - Past Records history (collapsible detail cards)
 - **New DB models**: `UserStats`, `ThoughtRecord`, `ActivityLog`
-- **Full QA test suite** (`tests/`) — 70+ tests covering unit (ML, NLP, gamification, resources) and integration (all Flask routes, auth, CBT, report)
+### Phase 6 — AI Companion, Clinician Sharing Portal & Advanced Analytics
+- **AI MindCompanion Chatbot (`/chat`)** — empathetic, CBT-guided AI conversational assistant (`chat_service.py`) with VADER sentiment grounding & crisis term safety triggers.
+- **Clinician Sharing Portal (`/share` & `/shared/<token>`)** — secure, tokenized read-only link generator with optional PIN protection for sharing progress with doctors/therapists.
+- **Advanced Multi-Metric Analytics (`/analytics`)** — multi-metric correlation line graphs (Fitness Score vs Journal Sentiment) and radar charts covering 6 cognitive balance dimensions.
+- **New DB models**: `ChatMessage`, `ShareToken`.
 
 ---
 
@@ -182,6 +186,12 @@ Mental Fitness Score (0 – 100)
 | `GET /journal` | 🔒 Login | View journal + past entries |
 | `POST /journal` | 🔒 Login | Submit entry, run NLP analysis |
 | `GET /dashboard` | 🔒 Login | View historical score chart |
+| `GET /chat` | 🔒 Login | AI MindCompanion conversational interface |
+| `POST /chat/api` | 🔒 Login | JSON endpoint for AI dialogue |
+| `GET /share` | 🔒 Login | Clinician link generator portal |
+| `POST /share/generate` | 🔒 Login | Create time-limited share token |
+| `GET /shared/<token>` | Public | Read-only clinician summary report |
+| `GET /analytics` | 🔒 Login | Multi-metric correlation & radar charts |
 | `GET /resources` | Public | Personalized wellness plan |
 | `GET /crisis` | Public | Crisis hotlines & grounding |
 | `GET /login` | Public | Login form |
