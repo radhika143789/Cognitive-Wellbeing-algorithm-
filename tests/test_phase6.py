@@ -4,6 +4,7 @@ Covers AI MindCompanion conversation engine, clinician sharing token security, a
 """
 
 import pytest
+from werkzeug.security import generate_password_hash
 from app import app, db
 from models import User, ChatMessage, ShareToken
 from chat_service import generate_ai_response
@@ -18,16 +19,23 @@ def client():
     with app.test_client() as client:
         with app.app_context():
             db.create_all()
-            # Create test user
-            user = User(username='phase6user', password='pbkdf2:sha256:testpass')
-            db.session.add(user)
-            db.session.commit()
+            user = User.query.filter_by(username='phase6user').first()
+            if not user:
+                user = User(
+                    username='phase6user',
+                    password=generate_password_hash('testpass123', method='pbkdf2:sha256')
+                )
+                db.session.add(user)
+                db.session.commit()
         yield client
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
 
 
 def login(client):
     """Helper to log in test user."""
-    return client.post('/login', data={'username': 'phase6user', 'password': 'testpass'}, follow_redirects=True)
+    return client.post('/login', data={'username': 'phase6user', 'password': 'testpass123'}, follow_redirects=True)
 
 
 # ── 1. Unit Tests for Chat Service ────────────────────────────────────────────

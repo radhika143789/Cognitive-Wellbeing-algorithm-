@@ -90,9 +90,9 @@ class TestAuth:
         assert b"Login" in resp.data or b"login" in resp.data
 
     def test_register_duplicate_user(self, client):
-        client.post("/register", data={"username": "dupuser", "password": "pass"})
+        client.post("/register", data={"username": "dupuser", "password": "password123"})
         resp = client.post("/register", data={
-            "username": "dupuser", "password": "pass"
+            "username": "dupuser", "password": "password123"
         }, follow_redirects=True)
         assert b"already exists" in resp.data
 
@@ -244,12 +244,14 @@ class TestJournal:
 
     def test_journal_updates_streak(self, auth_client):
         import app as flask_app_module
-        from models import UserStats
+        from models import User, UserStats
         auth_client.post("/journal", data={"content": "Streak test entry."})
         with flask_app_module.app.app_context():
-            stats = UserStats.query.first()
-            if stats:
-                assert stats.streak_days >= 1
+            user = User.query.filter_by(username="testuser").first()
+            if user:
+                stats = UserStats.query.filter_by(user_id=user.id).first()
+                if stats:
+                    assert stats.streak_days >= 1
 
 
 # ─────────────────────────────────────────────────────────────────────────────
