@@ -445,6 +445,10 @@ def cbt_thought_record():
     outcome_mood_raw = request.form.get('outcome_mood', '')
 
     # Input length limits
+    total_length = len(situation) + len(emotions) + len(hot_thought) + len(evidence_for) + len(evidence_against) + len(balanced_thought)
+    if total_length > MAX_CBT_TEXT_LENGTH * 4: # generic safety limit for the whole form
+        flash('Total text payload too large.', 'error')
+        return redirect(url_for('cbt'))
     if len(situation) > MAX_CBT_TEXT_LENGTH or len(hot_thought) > MAX_CBT_TEXT_LENGTH:
         flash(f'Text fields too long. Maximum {MAX_CBT_TEXT_LENGTH} characters each.', 'error')
         return redirect(url_for('cbt'))
@@ -504,8 +508,8 @@ def cbt_activity_log():
     except (ValueError, TypeError):
         ma = None
 
-    if len(activity) > MAX_CBT_TEXT_LENGTH:
-        flash(f'Activity description too long. Maximum {MAX_CBT_TEXT_LENGTH} characters.', 'error')
+    if len(activity) > MAX_CBT_TEXT_LENGTH or len(notes) > MAX_CBT_TEXT_LENGTH:
+        flash(f'Activity description or notes too long. Maximum {MAX_CBT_TEXT_LENGTH} characters.', 'error')
         return redirect(url_for('cbt'))
 
     log = ActivityLog(

@@ -41,6 +41,7 @@ def app():
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
             "WTF_CSRF_ENABLED": False,
+            "RATELIMIT_ENABLED": False,
             "SECRET_KEY": "test-secret",
         })
         with flask_app_module.app.app_context():
